@@ -116,10 +116,10 @@ theorem pmax_field_aux {k a₀ x₀ : ℕ} (ha : a₀ < 2 ^ k) (hx : x₀ < 2 ^ 
     (u &&& (c - c / 2 ^ k)) = a₀ - x₀ := by
   intro u c
   by_cases hle : x₀ ≤ a₀
-  · have hc : c = 2 ^ k := if_pos (by omega)
+  · have hc : c = 2 ^ k := ite_eq_left (by omega)
     rw [hc, Nat.div_self (Nat.two_pow_pos k), Nat.and_two_pow_sub_one_eq_mod,
       show u = (a₀ - x₀) + 2 ^ k by omega, Nat.add_mod_right, Nat.mod_eq_of_lt (by omega)]
-  · have hc : c = 0 := if_neg (by omega)
+  · have hc : c = 0 := ite_eq_right (by omega)
     rw [hc]
     simp only [Nat.zero_div, Nat.sub_zero, Nat.and_zero]
     omega
@@ -139,32 +139,32 @@ theorem Spec.pmax (hb : 0 < b) {fa fx : ℕ → ℕ} (hh : Spec b n h fun _ => 2
     intro s
     rw [field_or]
     by_cases hs : s < n
-    · rw [if_pos hs, ha.field_eq s hs, hh.field_eq s hs, field_or_high (hfa s hs)]
-    · rw [if_neg hs, ha.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs), Nat.zero_or]
+    · rw [ite_eq_left hs, ha.field_eq s hs, hh.field_eq s hs, field_or_high (hfa s hs)]
+    · rw [ite_eq_right hs, ha.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs), Nat.zero_or]
   -- the fields of `u`
   have hu : ∀ s, field b u s = if s < n then fa s + 2 ^ (b - 1) - fx s else 0 := by
     intro s
     rw [field_sub hb]
     · rw [hah]
       by_cases hs : s < n
-      · rw [if_pos hs, if_pos hs, hx.field_eq s hs]
-      · rw [if_neg hs, if_neg hs, hx.field_of_le (not_lt.mp hs)]
+      · rw [ite_eq_left hs, ite_eq_left hs, hx.field_eq s hs]
+      · rw [ite_eq_right hs, ite_eq_right hs, hx.field_of_le (not_lt.mp hs)]
     · intro s
       rw [hah]
       by_cases hs : s < n
-      · rw [if_pos hs, hx.field_eq s hs]; have := hfx s hs; omega
-      · rw [if_neg hs, hx.field_of_le (not_lt.mp hs)]
+      · rw [ite_eq_left hs, hx.field_eq s hs]; have := hfx s hs; omega
+      · rw [ite_eq_right hs, hx.field_of_le (not_lt.mp hs)]
   -- the fields of `c`
   have hc : ∀ s, field b c s = if s < n then
       (if 2 ^ (b - 1) ≤ fa s + 2 ^ (b - 1) - fx s then 2 ^ (b - 1) else 0) else 0 := by
     intro s
     rw [field_and, hu]
     by_cases hs : s < n
-    · rw [if_pos hs, if_pos hs, hh.field_eq s hs, and_two_pow_of_lt]
+    · rw [ite_eq_left hs, ite_eq_left hs, hh.field_eq s hs, and_two_pow_of_lt]
       rw [show b - 1 + 1 = b by omega]
       have := hfa s hs
       omega
-    · rw [if_neg hs, if_neg hs, Nat.zero_and]
+    · rw [ite_eq_right hs, ite_eq_right hs, Nat.zero_and]
   have hclow : ∀ s, field b c s % 2 ^ (b - 1) = 0 := by
     intro s; rw [hc]; split_ifs <;> simp
   have hcs : ∀ s, field b (c >>> (b - 1)) s = field b c s / 2 ^ (b - 1) := by
@@ -180,22 +180,22 @@ theorem Spec.pmax (hb : 0 < b) {fa fx : ℕ → ℕ} (hh : Spec b n h fun _ => 2
     intro s
     rw [field_and, hdiff, hu, hc]
     by_cases hs : s < n
-    · rw [if_pos hs, if_pos hs, if_pos hs]
+    · rw [ite_eq_left hs, ite_eq_left hs, ite_eq_left hs]
       exact pmax_field_aux (hfa s hs) (hfx s hs)
-    · rw [if_neg hs, if_neg hs, if_neg hs, Nat.zero_and]
+    · rw [ite_eq_right hs, ite_eq_right hs, ite_eq_right hs, Nat.zero_and]
   refine spec_of_field hb fun s => ?_
   rw [field_add]
   · rw [hand]
     by_cases hs : s < n
-    · rw [if_pos hs, if_pos hs, hx.field_eq s hs]; omega
-    · rw [if_neg hs, if_neg hs, hx.field_of_le (not_lt.mp hs)]
+    · rw [ite_eq_left hs, ite_eq_left hs, hx.field_eq s hs]; omega
+    · rw [ite_eq_right hs, ite_eq_right hs, hx.field_of_le (not_lt.mp hs)]
   · intro s' _
     rw [hand]
     by_cases hs' : s' < n
-    · rw [if_pos hs', hx.field_eq s' hs']
+    · rw [ite_eq_left hs', hx.field_eq s' hs']
       have := hfa s' hs'; have := hfx s' hs'
       omega
-    · rw [if_neg hs', hx.field_of_le (not_lt.mp hs')]; exact Nat.two_pow_pos b
+    · rw [ite_eq_right hs', hx.field_of_le (not_lt.mp hs')]; exact Nat.two_pow_pos b
 
 end pmax
 
@@ -221,7 +221,7 @@ theorem Spec.le_of_ple (hb : 0 < b) {h : ℕ} {g : ℕ → Bool} {fx fy : ℕ �
       · simp [field_or_high (hfy s hs)]
     · rw [hy.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs), Nat.zero_or]
   have hsub : field b ((y ||| h) - x) t = fy t + 2 ^ (b - 1) - fx t := by
-    rw [field_sub hb, hyh, if_pos ht, hg, hx.field_eq t ht]
+    rw [field_sub hb, hyh, ite_eq_left ht, hg, hx.field_eq t ht]
     · rfl
     · intro s
       rw [hyh]
