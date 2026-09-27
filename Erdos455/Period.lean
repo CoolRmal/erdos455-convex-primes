@@ -37,8 +37,8 @@ theorem q_first_two_mul_add_two (e : ℕ) :
   rw [hq.first_two_mul_add_two, hq.q_first_succ]
 
 /-- The runs of the gaps `2 M k + 2 i`, `1 ≤ i < M`, form a path of runs along one period of
-gap values, from the residue of `q (first q (2 M k + 2))` to that of `q (first q (2 M (k + 1)))`.
--/
+gap values, from the residue of `q (first q (2 M k + 2))` to that of
+`q (first q (2 M (k + 1)))`. -/
 theorem periodPath (k : ℕ) :
     PeriodPath (fun i => 2 * M * k + 2 * i) (fun i => q (first q (2 * M * k + 2 * i + 2)))
       (fun i => runLength q (2 * M * k + 2 * i)) where
