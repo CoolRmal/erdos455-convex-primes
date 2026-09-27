@@ -65,7 +65,7 @@ and `k ≤ p - 1`. -/
 theorem eq_leastNonDivisor_of_prime_add_mul {a d k : ℕ} (hd : 2 ≤ d)
     (hprime : ∀ j ≤ k, (a + j * d).Prime) (hk : leastNonDivisor d - 1 ≤ k) :
     a = leastNonDivisor d ∧ k ≤ leastNonDivisor d - 1 := by
-  set p := leastNonDivisor d with hp_def
+  set p := leastNonDivisor d
   have hd0 : d ≠ 0 := by omega
   have hp : p.Prime := leastNonDivisor_prime d
   have hpd : ¬p ∣ d := not_dvd_leastNonDivisor hd0
@@ -91,7 +91,7 @@ theorem two_pow_card_le_of_leastNonDivisor {S : Finset ℕ} {D : ℕ} (hD : 0 < 
     (hS : ∀ p ∈ S, ∃ d, d ≠ 0 ∧ d ≤ D ∧ leastNonDivisor d = p) :
     2 ^ S.card ≤ 2 * D := by
   rcases S.eq_empty_or_nonempty with rfl | hne
-  · simp
+  · rw [Finset.card_empty, pow_zero]
     omega
   set p := S.max' hne
   obtain ⟨d, hd0, hdD, hdp⟩ := hS p (S.max'_mem hne)

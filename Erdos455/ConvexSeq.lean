@@ -68,20 +68,10 @@ noncomputable def runLength (q : ℕ → ℕ) (d : ℕ) : ℕ :=
 
 /-- A prime dividing `M = 3 · 5 · 7 · 11 · 13 · 17` is at most `17`. -/
 theorem le_seventeen_of_dvd_M {p : ℕ} (hp : p.Prime) (h : p ∣ M) : p ≤ 17 := by
-  rw [M_eq] at h
-  have h' : ∀ r : ℕ, r.Prime → p ∣ r → p ≤ r := fun r hr hpr =>
-    ((Nat.prime_dvd_prime_iff_eq hp hr).mp hpr).le
-  rcases (Nat.Prime.dvd_mul hp).mp h with h | h
-  · rcases (Nat.Prime.dvd_mul hp).mp h with h | h
-    · rcases (Nat.Prime.dvd_mul hp).mp h with h | h
-      · rcases (Nat.Prime.dvd_mul hp).mp h with h | h
-        · rcases (Nat.Prime.dvd_mul hp).mp h with h | h
-          · exact (h' 3 Nat.prime_three h).trans (by norm_num)
-          · exact (h' 5 Nat.prime_five h).trans (by norm_num)
-        · exact (h' 7 (by norm_num) h).trans (by norm_num)
-      · exact (h' 11 (by norm_num) h).trans (by norm_num)
-    · exact (h' 13 (by norm_num) h).trans (by norm_num)
-  · exact h' 17 (by norm_num) h
+  obtain ⟨a, ha, hpa⟩ := (Prime.dvd_prod_iff hp.prime).mp
+    (show p ∣ [3, 5, 7, 11, 13, 17].prod from h)
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at ha
+  exact (Nat.le_of_dvd (by omega) hpa).trans (by omega)
 
 /-- The hypotheses of the main theorem, in the form of `Challenge.lean`. -/
 theorem IsConvexPrimeSeq.of_forall {q : ℕ → ℕ} (hmono : StrictMono q)
@@ -221,7 +211,7 @@ theorem gap_eq {d n : ℕ} (h₁ : first q d ≤ n) (h₂ : n < first q (d + 1))
 theorem q_first_add {d j : ℕ} (hj : j ≤ runLength q d) :
     q (first q d + j) = q (first q d) + j * d := by
   rw [← hq.add_sum_gap, Finset.sum_congr rfl fun i hi => hq.gap_eq (Nat.le_add_right _ i)
-    (by have := hq.first_add_runLength d; simp at hi; omega)]
+    (by have := hq.first_add_runLength d; have := Finset.mem_range.mp hi; omega)]
   simp
 
 theorem q_first_succ (d : ℕ) : q (first q (d + 1)) = q (first q d) + runLength q d * d := by

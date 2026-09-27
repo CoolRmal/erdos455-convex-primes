@@ -9,9 +9,9 @@ import Erdos455.Counting
 # From gap counts to growth
 
 Section 7 of the paper. By Theorem 16, for every `ε > 0` the index `n` is at most
-`β · gap q n + C` with `β = (Λ + G + ε) / (2 M)`. Summing the gaps,
-`q n ≥ (n² / 2 - (C + 1/2) n) / β`, which gives **Theorem 1**:
-`c n² < q n` eventually, for every `c < M / (Λ + G) = 255255 / (295318 + G)`. Hence
+`β · gap q n + C` with `β = (Λ + G + ε) / (2 M)`, since `n < first q (gap q n + 1)`. Summing
+the gaps, `q n ≥ (n² / 2 - (C + 1/2) n) / β`, which gives **Theorem 1**: `c n² < q n`
+eventually, for every `c < M / (Λ + G) = 255255 / (295318 + G)`. Hence
 `liminf q n / n² ≥ M / (Λ + G) > 0.864289`.
 
 Unlike the paper, we do not need `gap q n → ∞` here: the bound `n ≤ β · gap q n + C` holds for
@@ -69,37 +69,25 @@ variable {q : ℕ → ℕ} (hq : IsConvexPrimeSeq q)
 include hq
 
 /-- By Theorem 16, the index `n` is at most `(Λ + G + ε) / (2 M)` times its gap, up to an
-additive constant. -/
+additive constant: all the indices `n' ∈ [n₀, n]` have `gap q n' ≤ gap q n`. -/
 theorem exists_le_mul_gap {ε : ℝ} (hε : 0 < ε) :
     ∃ C : ℝ, ∀ n : ℕ, (n : ℝ) ≤ (growth + G + ε) / (2 * M) * gap q n + C := by
-  obtain ⟨C, hC⟩ := hq.exists_first_le hε
+  obtain ⟨C, hC⟩ := hq.exists_first_succ_le hε
+  refine ⟨C, fun n => ?_⟩
   have hpos : 0 < (growth : ℝ) + G + ε := by
     have := lt_G_bound
     positivity
-  have hstart : (start q : ℝ) ≤ C := by simpa [hq.first_eq_start] using hC 0
-  refine ⟨growth + G + ε + C, fun n => ?_⟩
-  have hgap : 0 ≤ (growth + G + ε) / (2 * M) * gap q n := by positivity
   rcases lt_or_ge n (start q) with hn | hn
-  · have : (n : ℝ) ≤ start q := by exact_mod_cast hn.le
+  · have h0 := hC 0
+    rw [zero_add, hq.first_eq_start (by norm_num), Nat.cast_zero, mul_zero, zero_add] at h0
+    have : (n : ℝ) ≤ start q := by exact_mod_cast hn.le
+    have : 0 ≤ (growth + G + ε) / (2 * M) * gap q n := by positivity
     linarith
-  set D := gap q n
-  set K := D / (2 * M) + 1
-  have hlt : n < first q (2 * M * K + 2) := by
-    refine ((hq.lt_first_iff hn).mpr (Nat.lt_add_one D)).trans_le (hq.first_mono ?_)
-    have hDK : D < 2 * M * K := Nat.lt_mul_div_succ D (show 0 < 2 * M by norm_num [M])
-    omega
-  have hK : (K : ℝ) ≤ D / (2 * M) + 1 := by
-    have : ((D / (2 * M) : ℕ) : ℝ) ≤ (D : ℝ) / ((2 * M : ℕ) : ℝ) := Nat.cast_div_le
-    push_cast at this
-    simp only [K, Nat.cast_add, Nat.cast_one]
-    linarith
-  calc (n : ℝ) ≤ first q (2 * M * K + 2) := by exact_mod_cast hlt.le
-    _ ≤ (growth + G + ε) * K + C := hC K
-    _ ≤ (growth + G + ε) * (D / (2 * M) + 1) + C := by gcongr
-    _ = (growth + G + ε) / (2 * M) * D + (growth + G + ε + C) := by ring
+  · have hlt : n < first q (gap q n + 1) := (hq.lt_first_iff hn).mpr (Nat.lt_add_one _)
+    exact (Nat.cast_le.mpr hlt.le).trans (hC _)
 
-/-- Summing the gaps: if `n ≤ β · gap q n + C` for all `n`, then `n² / 2 - (C + 1/2) n ≤ β q n`.
--/
+/-- Summing the gaps: if `n ≤ β · gap q n + C` for all `n`, then
+`n² / 2 - (C + 1/2) n ≤ β q n`. -/
 theorem sq_div_two_sub_le {β C : ℝ} (hβ : 0 ≤ β) (h : ∀ n : ℕ, (n : ℝ) ≤ β * gap q n + C)
     (n : ℕ) : (n : ℝ) ^ 2 / 2 - (C + 1 / 2) * n ≤ β * q n := by
   have hsum : (q 0 : ℝ) + ∑ k ∈ Finset.range n, (gap q k : ℝ) = q n := by
@@ -134,7 +122,9 @@ theorem eventually_mul_sq_lt {c : ℝ} (hc : c < 255255 / (295318 + G)) :
       _ = 255255 - c * L := by rw [hε_def]; field_simp
   obtain ⟨C, hC⟩ := hq.exists_le_mul_gap hε
   set β := ((growth : ℝ) + G + ε) / (2 * M) with hβ_def
-  have hβ_eq : β = (L + ε) / 510510 := by simp [hβ_def, hL_def, growth, M]; ring
+  have hβ_eq : β = (L + ε) / 510510 := by
+    simp only [hβ_def, hL_def, growth, M, Nat.cast_ofNat]
+    ring
   have hβ : 0 < β := by rw [hβ_eq]; positivity
   set δ := 1 / 2 - c * β with hδ_def
   have hδ : 0 < δ := by

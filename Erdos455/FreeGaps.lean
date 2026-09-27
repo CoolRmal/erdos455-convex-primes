@@ -71,16 +71,15 @@ theorem sum_runLength_two_mul_M_le (K : ℕ) :
       ((leastNonDivisor (2 * M * j) : ℝ) - 2) +
         if leastNonDivisor (2 * M * j) - 1 ≤ runLength q (2 * M * j) then 1 else 0 := by
     intro j hj
-    have hd := two_le_two_mul_M_mul (Finset.mem_Icc.mp hj).1
-    have hle := hq.runLength_le_sub_one hd
+    have hle := hq.runLength_le_sub_one (two_le_two_mul_M_mul (Finset.mem_Icc.mp hj).1)
     have hP := (leastNonDivisor_prime (2 * M * j)).two_le
-    split_ifs with h
-    · have : runLength q (2 * M * j) + 1 ≤ leastNonDivisor (2 * M * j) := by omega
-      have : (runLength q (2 * M * j) : ℝ) + 1 ≤ leastNonDivisor (2 * M * j) := by exact_mod_cast this
-      linarith
-    · have : runLength q (2 * M * j) + 2 ≤ leastNonDivisor (2 * M * j) := by omega
-      have : (runLength q (2 * M * j) : ℝ) + 2 ≤ leastNonDivisor (2 * M * j) := by exact_mod_cast this
-      linarith
+    have key : runLength q (2 * M * j) + 2 ≤ leastNonDivisor (2 * M * j) +
+        if leastNonDivisor (2 * M * j) - 1 ≤ runLength q (2 * M * j) then 1 else 0 := by
+      split_ifs <;> omega
+    have key' : (runLength q (2 * M * j) : ℝ) + 2 ≤ leastNonDivisor (2 * M * j) +
+        if leastNonDivisor (2 * M * j) - 1 ≤ runLength q (2 * M * j) then 1 else 0 := by
+      exact_mod_cast key
+    linarith
   refine (Finset.sum_le_sum hterm).trans ?_
   rw [Finset.sum_add_distrib, Finset.sum_boole]
   exact add_le_add (sum_leastNonDivisor_two_mul_M_le K) le_rfl

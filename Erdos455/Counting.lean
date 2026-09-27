@@ -27,8 +27,8 @@ every `ε > 0`, which follows from `e² ≤ 2 ^ e + 1`.
 
 * `Erdos455.IsConvexPrimeSeq.first_two_mul_M_mul_add_two`: the decomposition of
   `first q (2 M K + 2)` into periods (Lemma 6(d)).
-* `Erdos455.IsConvexPrimeSeq.exists_first_le`: Theorem 16, in the form
-  `first q (2 M K + 2) ≤ (Λ + G + ε) K + C_ε` for every `ε > 0`.
+* `Erdos455.IsConvexPrimeSeq.exists_first_succ_le`: Theorem 16, in the form
+  `N(D) ≤ first q (D + 1) ≤ (Λ + G + ε) / (2 M) · D + C_ε` for every `ε > 0`.
 -/
 
 namespace Erdos455
@@ -49,7 +49,8 @@ theorem sq_le_two_pow_add_one (n : ℕ) : n ^ 2 ≤ 2 ^ n + 1 := by
     omega
 
 /-- If `e² ≤ B K`, then `e ≤ ε K + B / ε` for every `ε > 0`. -/
-theorem le_mul_add_div_of_sq_le {e B K ε : ℝ} (hB : 0 ≤ B) (hK : 0 ≤ K) (hε : 0 < ε) (h : e ^ 2 ≤ B * K) : e ≤ ε * K + B / ε := by
+theorem le_mul_add_div_of_sq_le {e B K ε : ℝ} (hB : 0 ≤ B) (hK : 0 ≤ K) (hε : 0 < ε)
+    (h : e ^ 2 ≤ B * K) : e ≤ ε * K + B / ε := by
   rcases le_or_gt e (ε * K) with hle | hlt
   · exact hle.trans (le_add_of_nonneg_right (div_nonneg hB hε.le))
   · have he' : 0 < e := (mul_nonneg hε.le hK).trans_lt hlt
@@ -114,15 +115,41 @@ theorem card_exceptional_sq_le (K : ℕ) :
     have := sq_le_two_pow_add_one (exceptional q K).card
     nlinarith
 
-/-- **Theorem 16**: for every `ε > 0` there is `C` such that
-`N(2 M K + 1) ≤ first q (2 M K + 2) ≤ (Λ + G + ε) K + C` for all `K`. -/
-theorem exists_first_le {ε : ℝ} (hε : 0 < ε) :
+/-- Theorem 16 along the multiples of `2 M`: for every `ε > 0` there is `C` such that
+`first q (2 M K + 2) ≤ (Λ + G + ε) K + C` for all `K`. -/
+theorem exists_first_two_mul_M_mul_add_two_le {ε : ℝ} (hε : 0 < ε) :
     ∃ C : ℝ, ∀ K : ℕ, (first q (2 * M * K + 2) : ℝ) ≤ (growth + G + ε) * K + C := by
   refine ⟨start q + 255 + (4 * M + 1) / ε, fun K => ?_⟩
   have hcard : ((exceptional q K).card : ℝ) ≤ ε * K + (4 * M + 1) / ε :=
     le_mul_add_div_of_sq_le (by positivity) (Nat.cast_nonneg _) hε
       (by exact_mod_cast hq.card_exceptional_sq_le K)
   linarith [hq.first_le_add_card K]
+
+/-- **Theorem 16**: for every `ε > 0` there is `C` such that for all `D`,
+`N(D) ≤ first q (D + 1) ≤ (Λ + G + ε) / (2 M) · D + C`, where `N(D) = first q (D + 1) - n₀` is
+the number of indices `n ≥ n₀` with `gap q n ≤ D`. -/
+theorem exists_first_succ_le {ε : ℝ} (hε : 0 < ε) :
+    ∃ C : ℝ, ∀ D : ℕ, (first q (D + 1) : ℝ) ≤ (growth + G + ε) / (2 * M) * D + C := by
+  obtain ⟨C, hC⟩ := hq.exists_first_two_mul_M_mul_add_two_le hε
+  refine ⟨growth + G + ε + C, fun D => ?_⟩
+  have hpos : 0 < (growth : ℝ) + G + ε := by
+    have := lt_G_bound
+    positivity
+  -- round `D` up to the next multiple `2 M K` of `2 M`
+  set K := D / (2 * M) + 1
+  have hmono : first q (D + 1) ≤ first q (2 * M * K + 2) := by
+    refine hq.first_mono ?_
+    have : D < 2 * M * K := Nat.lt_mul_div_succ D (show 0 < 2 * M by norm_num [M])
+    omega
+  have hK : (K : ℝ) ≤ D / (2 * M) + 1 := by
+    have : ((D / (2 * M) : ℕ) : ℝ) ≤ (D : ℝ) / ((2 * M : ℕ) : ℝ) := Nat.cast_div_le
+    push_cast at this
+    simp only [K, Nat.cast_add, Nat.cast_one]
+    linarith
+  calc (first q (D + 1) : ℝ) ≤ first q (2 * M * K + 2) := by exact_mod_cast hmono
+    _ ≤ (growth + G + ε) * K + C := hC K
+    _ ≤ (growth + G + ε) * (D / (2 * M) + 1) + C := by gcongr
+    _ = (growth + G + ε) / (2 * M) * D + (growth + G + ε + C) := by ring
 
 end IsConvexPrimeSeq
 
