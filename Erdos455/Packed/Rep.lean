@@ -56,8 +56,10 @@ theorem field_two_pow_mul (hb : 0 < b) (k t : ℕ) :
       omega
     · simp [hib]
 
+/-- `rep b m 0 = 0`. -/
 theorem rep_zero : rep b m 0 = 0 := by simp [rep]
 
+/-- One more period: `rep b m (n + 1) = rep b m n + 2 ^ (b m n)`. -/
 theorem rep_succ : rep b m (n + 1) = rep b m n + 2 ^ (b * m * n) := by
   simp [rep, sum_range_succ]
 
@@ -114,6 +116,7 @@ with a few GMP operations. -/
 def repC (b m n : ℕ) : ℕ :=
   (2 ^ (b * m * n) - 1) / (2 ^ (b * m) - 1)
 
+/-- `rep` agrees with its closed form `repC`. -/
 theorem rep_eq_repC (hbm : 0 < b * m) : rep b m n = repC b m n :=
   rep_eq_div hbm
 

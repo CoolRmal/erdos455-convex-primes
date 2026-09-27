@@ -87,6 +87,7 @@ theorem get_of_not_mem (q : Quad) {c : ℕ} (h : ¬(c = 1 ∨ c = 2 ∨ c = 3 �
 def Bounded (L : Layout) (q : Quad) (B : ℕ) : Prop :=
   L.Bounded q.q₁ B ∧ L.Bounded q.q₂ B ∧ L.Bounded q.q₃ B ∧ L.Bounded q.q₄ B
 
+/-- The entries of a bounded quad are bounded. -/
 theorem Bounded.get {L : Layout} {q : Quad} {B : ℕ} (h : q.Bounded L B) (c : ℕ) :
     L.Bounded (q.get c) B := by
   by_cases hc : c = 1 ∨ c = 2 ∨ c = 3 ∨ c = 4
@@ -95,14 +96,17 @@ theorem Bounded.get {L : Layout} {q : Quad} {B : ℕ} (h : q.Bounded L B) (c : �
   · rw [get_of_not_mem q hc]
     exact ⟨Nat.two_pow_pos _, fun t => by simp⟩
 
+/-- A bound on the entries of a quad can be weakened. -/
 theorem Bounded.mono {L : Layout} {q : Quad} {B B' : ℕ} (h : q.Bounded L B) (hB : B ≤ B') :
     q.Bounded L B' :=
   ⟨h.1.mono hB, h.2.1.mono hB, h.2.2.1.mono hB, h.2.2.2.mono hB⟩
 
+/-- A quad built from bounded values is bounded. -/
 theorem bounded_ofFun {L : Layout} {f : ℕ → ℕ} {B : ℕ} (h : ∀ c, L.Bounded (f c) B) :
     (Quad.ofFun f).Bounded L B :=
   ⟨h 1, h 2, h 3, h 4⟩
 
+/-- A quad whose entries are bounded is bounded. -/
 theorem bounded_of_get {L : Layout} {q : Quad} {B : ℕ} (h : ∀ c, L.Bounded (q.get c) B) :
     q.Bounded L B :=
   ⟨h 1, h 2, h 3, h 4⟩

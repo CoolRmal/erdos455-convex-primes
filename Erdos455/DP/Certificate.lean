@@ -34,6 +34,7 @@ namespace DP
 -- modulo `15`) of `17017` fields of `9` bits.
 dp_layout% layout17 17017 9
 
+/-- The layout covers the units modulo `M = 15 · 17017`. -/
 theorem layout17_R : 15 * layout17.R = M := by decide +kernel
 
 namespace layout17
@@ -46,18 +47,25 @@ operations), whose fields are known by `Erdos455.Packed.spec_unitInd`. -/
 /-- The primes dividing `17017`. -/
 def primes : List ℕ := [7, 11, 13, 17]
 
+/-- The field width of `layout17` is `9`. -/
 theorem b_eq : layout17.b = 9 := by decide +kernel
 
+/-- The number of fields of `layout17` is `17017`. -/
 theorem R_eq : layout17.R = 17017 := by decide +kernel
 
+/-- `ones` is the geometric sum `∑_{t < 17017} 2 ^ (9 t)`. -/
 theorem ones_eq : layout17.ones = repC 9 1 17017 := by decide +kernel
 
+/-- `highs` is `2 ^ 8` times `ones`. -/
 theorem highs_eq : layout17.highs = repC 9 1 17017 * 2 ^ 8 := by decide +kernel
 
+/-- `uones` is the indicator of the units modulo `17017`. -/
 theorem uones_eq : layout17.uones = unitInd 9 17017 primes := by decide +kernel
 
+/-- `umask` is `2 ^ 9 - 1` times the indicator of the units. -/
 theorem umask_eq : layout17.umask = unitInd 9 17017 primes * (2 ^ 9 - 1) := by decide +kernel
 
+/-- `uhighs` is `2 ^ 8` times the indicator of the units. -/
 theorem uhighs_eq : layout17.uhighs = unitInd 9 17017 primes * 2 ^ 8 := by decide +kernel
 
 /-- The units modulo `17017` are the numbers divisible by none of its prime factors. -/
