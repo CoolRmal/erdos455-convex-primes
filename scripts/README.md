@@ -16,7 +16,9 @@ the proof: everything the proof relies on is computed and checked inside Lean.
 * `headroom.c` — the range of the values during the verification run, which justifies the field
   width `9` (values stay below `2⁸`) and the normalisation period `32`.
 * `simd_volume.c` — the work of the packed iteration for various ways of splitting the residues
-  into components (used to choose the split by the residue modulo `3`).
+  into components (used to choose the split by the residue modulo `15`). With the split modulo
+  `3` (two components of `85085` fields) the certificate also checks, but nanoda, which shifts
+  by multiplying and dividing by powers of two, is about seven times slower.
 * `bench_checkers.sh` — times the Lean kernel, nanoda and con-ron (and, with `ALL=1`, the other
   checkers bundled with the toolchain) on an export of given declarations, with the same extra
   declarations that `lake comparator` exports.
