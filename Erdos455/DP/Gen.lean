@@ -158,6 +158,8 @@ elab "dp_layout% " id:ident R:num b:num : command => do
 elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : command => do
   let ns ← getCurrNamespace
   let lName ← liftCoreM <| realizeGlobalConstNoOverloadWithInfo lId
+  let wfName ← liftCoreM <| realizeGlobalConstNoOverloadWithInfo wf
+  let hRName ← liftCoreM <| realizeGlobalConstNoOverloadWithInfo hR
   let some (.defnInfo lInfo) := (← getEnv).find? lName | throwError "{lName} is not a definition"
   -- recover the layout from its definition
   let args := lInfo.value.getAppArgs
@@ -182,7 +184,7 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
   let phiName := ns ++ phiId.getId
   liftCoreM <| addDef phiName (mkConst ``State) (stateE phi)
   let t1 ← IO.monoMsNow
-  logInfo m!"potential computed in {t1 - t0} ms"
+  IO.eprintln s!"dp_certificate%: potential computed in {t1 - t0} ms"
   -- 2. the verification run from the potential, in chunks
   let lE := mkConst lName
   let φE := mkApp2 (mkConst ``State.value) lE (mkConst phiName)
@@ -196,7 +198,7 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
   let sim0 := phiName ++ `sim_0
   liftCoreM <| addThm sim0 (simE 0 (mkConst phiName))
     (mkApp3 (mkConst ``sim_zero) lE (mkConst phiName)
-      (mkApp4 (mkConst ``good) lE (mkConst wf.getId) (mkConst phiName) goodPf))
+      (mkApp4 (mkConst ``good) lE (mkConst wfName) (mkConst phiName) goodPf))
   let mut st := phi
   let mut stName := phiName
   let mut simName := sim0
@@ -231,9 +233,11 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
       (natE (lo + n)) (mkConst ``M)
     let ltPf ← liftTermElabM <| decideProof ltTy
     liftCoreM <| addThm simName' (simE (lo + n) (mkConst nextName))
-      (mkAppN (mkConst ``chunk) #[lE, mkConst wf.getId, mkConst hR.getId, φE,
+      (mkAppN (mkConst ``chunk) #[lE, mkConst wfName, mkConst hRName, φE,
         natE K, natE n, natE lo, mkConst schedName, mkConst stName, mkConst nextName,
         mkConst chunkName, ltPf, mkConst simName])
+    if k % 50 == 0 then
+      IO.eprintln s!"dp_certificate%: chunk {k} checked after {(← IO.monoMsNow) - t1} ms"
     st := st'
     stName := nextName
     simName := simName'
