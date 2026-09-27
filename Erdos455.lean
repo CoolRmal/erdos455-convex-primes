@@ -9,3 +9,5 @@ import Erdos455.DP.Certificate
 import Erdos455.Progression
 import Erdos455.ConvexSeq
 import Erdos455.Period
+import Erdos455.FreeGaps
+import Erdos455.Counting
