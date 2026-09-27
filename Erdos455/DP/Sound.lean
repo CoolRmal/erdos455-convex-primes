@@ -37,6 +37,7 @@ variable {L : Layout}
 /-- The specification of the packed constants of a layout. -/
 structure WF (L : Layout) : Prop where
   two_le_b : 2 ≤ L.b
+  R_pos : 0 < L.R
   ones : Spec L.b L.R L.ones fun _ => 1
   highs : Spec L.b L.R L.highs fun _ => 2 ^ (L.b - 1)
   umask : Spec L.b L.R L.umask fun t => if Nat.Coprime t L.R then 2 ^ L.b - 1 else 0

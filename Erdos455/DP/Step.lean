@@ -129,8 +129,8 @@ def step (i : ℕ) (st : State) : Option State :=
 /-- Subtract `s` from every value (the fields at units), after checking that no field borrows,
 and check that the new fields are at most `B`. -/
 def normalize (s B : ℕ) (st : State) : Option State :=
-  let su := s * L.uones
-  let bo := B * L.ones
+  let su := L.uones * s
+  let bo := L.ones * B
   let w₁ := st.w₁ - su
   let w₂ := st.w₂ - su
   bif s < 2 ^ (L.b - 1) && B < 2 ^ (L.b - 1) && ple L.uhighs su st.w₁ &&
@@ -138,24 +138,33 @@ def normalize (s B : ℕ) (st : State) : Option State :=
     some ⟨w₁, w₂, st.offset + s, B⟩
   else none
 
+/-- Step `lo + 1` of a run, followed by the normalisation with the next entry `(s, B)` of the
+schedule if `K ∣ lo + 1`, and then by the continuation `k` on the rest of the schedule. -/
+def runStep (K lo : ℕ) (k : List (ℕ × ℕ) → State → Option (List (ℕ × ℕ) × State))
+    (sched : List (ℕ × ℕ)) (st : State) : Option (List (ℕ × ℕ) × State) :=
+  match L.step (lo + 1) st with
+  | none => none
+  | some st' =>
+    bif (lo + 1) % K == 0 then
+      match sched with
+      | [] => none
+      | (s, B) :: sched' =>
+        match L.normalize s B st' with
+        | none => none
+        | some st'' => k sched' st''
+    else k sched st'
+
 /-- Steps `lo + 1, …, lo + n`. After every step `i` with `K ∣ i`, the state is normalised with
 the next entry `(s, B)` of the schedule. Returns the unused schedule and the final state. -/
 def run (K : ℕ) (n : ℕ) : ℕ → List (ℕ × ℕ) → State → Option (List (ℕ × ℕ) × State) :=
   Nat.rec (motive := fun _ => ℕ → List (ℕ × ℕ) → State → Option (List (ℕ × ℕ) × State))
-    (fun _ sched st => some (sched, st))
-    (fun _ ih lo sched st =>
-      match L.step (lo + 1) st with
-      | none => none
-      | some st' =>
-        bif (lo + 1) % K == 0 then
-          match sched with
-          | [] => none
-          | (s, B) :: sched' =>
-            match L.normalize s B st' with
-            | none => none
-            | some st'' => ih (lo + 1) sched' st''
-        else ih (lo + 1) sched st')
-    n
+    (fun _ sched st => some (sched, st)) (fun _ ih lo => L.runStep K lo (ih (lo + 1))) n
+
+theorem run_zero (K lo : ℕ) (sched : List (ℕ × ℕ)) (st : State) :
+    L.run K 0 lo sched st = some (sched, st) := rfl
+
+theorem run_succ (K n lo : ℕ) :
+    L.run K (n + 1) lo = L.runStep K lo (L.run K n (lo + 1)) := rfl
 
 end Layout
 

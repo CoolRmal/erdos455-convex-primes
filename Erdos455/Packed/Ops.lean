@@ -48,6 +48,18 @@ theorem spec_of_field (hb : 0 < b) {f : ℕ → ℕ} (h : ∀ t, field b x t = i
   ⟨lt_pow_of_field_eq_zero hb fun t ht => by simp [h, Nat.not_lt.mpr ht],
     fun t ht => by simp [h, ht]⟩
 
+/-- Multiplication by a scalar acts fieldwise when no field overflows. -/
+theorem Spec.mul_const {f : ℕ → ℕ} (hx : Spec b n x f) {c : ℕ} (hb : 0 < b)
+    (hc : ∀ t < n, f t * c < 2 ^ b) : Spec b n (x * c) fun t => f t * c := by
+  have hfield : ∀ t, field b (x * c) t = field b x t * c := fun t =>
+    field_mul fun s _ => by
+      by_cases hs : s < n
+      · rw [hx.field_eq s hs]; exact hc s hs
+      · rw [hx.field_of_le (not_lt.mp hs), zero_mul]; exact Nat.two_pow_pos b
+  refine ⟨lt_pow_of_field_eq_zero hb fun t ht => ?_, fun t ht => ?_⟩
+  · rw [hfield, hx.field_of_le ht, zero_mul]
+  · rw [hfield, hx.field_eq t ht]
+
 /-! ### Rotation -/
 
 /-- Rotating the fields of `x` by `k ≤ n` places: field `t` of the result is field
