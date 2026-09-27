@@ -71,6 +71,7 @@ theorem largePrime_eq_of_count {i p : ℕ} (hp : p.Prime) (h19 : 19 ≤ p)
     (h : Nat.count (fun p => p.Prime ∧ 19 ≤ p) p = i) : largePrime i = p :=
   h ▸ largePrime_count hp h19
 
+/-- `largePrime 0 = 19`. -/
 theorem largePrime_zero : largePrime 0 = 19 :=
   largePrime_eq_of_count (by norm_num) le_rfl (by decide)
 
@@ -90,7 +91,8 @@ theorem largePrime_three : largePrime 3 = 31 :=
 theorem largePrime_four : largePrime 4 = 37 :=
   largePrime_eq_of_count (by norm_num) (by norm_num) (by decide)
 
-/-- `largePrime (i + 1)` is the least prime above `largePrime i`. -/
+/-- `largePrime (i + 1)` is the least prime above `largePrime i`: it is at most every prime
+`q > largePrime i`. -/
 theorem largePrime_succ_le_of_lt {i q : ℕ} (hq : q.Prime) (h : largePrime i < q) :
     largePrime (i + 1) ≤ q := by
   have h19 := (nineteen_le_largePrime i).trans h.le
@@ -110,13 +112,16 @@ theorem largePrime_succ_le_two_mul (i : ℕ) : largePrime (i + 1) ≤ 2 * largeP
 noncomputable def largePrimeProd (n : ℕ) : ℕ :=
   ∏ i ∈ range n, largePrime i
 
+/-- The empty product: `largePrimeProd 0 = 1`. -/
 theorem largePrimeProd_zero : largePrimeProd 0 = 1 :=
   prod_range_zero _
 
+/-- `p'₁ ⋯ p'ₙ₊₁ = (p'₁ ⋯ p'ₙ) ⋅ p'ₙ₊₁`. -/
 theorem largePrimeProd_succ (n : ℕ) :
     largePrimeProd (n + 1) = largePrimeProd n * largePrime n :=
   prod_range_succ _ _
 
+/-- `p'₁ ⋯ p'ₙ` is positive. -/
 theorem largePrimeProd_pos (n : ℕ) : 0 < largePrimeProd n :=
   prod_pos fun i _ => (largePrime_prime i).pos
 
@@ -160,12 +165,14 @@ theorem largePrime_coprime_two_mul_M (i : ℕ) : (largePrime i).Coprime (2 * M) 
   all_goals exact Nat.coprime_of_lt_prime (by norm_num) (by omega) (largePrime_prime i)
 
 /-- For `j ≠ 0`, `P(2 M j) ≥ 19`, since every prime below `19` divides `2 M`. -/
-theorem nineteen_le_leastNonDivisor {j : ℕ} (hj : j ≠ 0) : 19 ≤ leastNonDivisor (2 * M * j) := by
+theorem nineteen_le_leastNonDivisor_two_mul_M {j : ℕ} (hj : j ≠ 0) :
+    19 ≤ leastNonDivisor (2 * M * j) := by
   by_contra h
   exact not_dvd_leastNonDivisor (by simp [M, hj])
     ((dvd_two_mul_M (leastNonDivisor_prime (2 * M * j)) (by omega)).mul_right j)
 
-/-- For `j ≠ 0`, if `P(2 M j) = p'ₖ`, then `p'₁ ⋯ p'ₙ` divides `j` if and only if `n ≤ k`. -/
+/-- For `j ≠ 0`, if `P(2 M j) = largePrime k`, then `largePrimeProd n` divides `j` if and only if
+`n ≤ k`: the primes `largePrime i` with `i < k` divide `j`, but `largePrime k` does not. -/
 theorem largePrimeProd_dvd_iff {j k : ℕ} (hj : j ≠ 0)
     (hk : largePrime k = leastNonDivisor (2 * M * j)) (n : ℕ) :
     largePrimeProd n ∣ j ↔ n ≤ k := by
@@ -183,7 +190,7 @@ theorem leastNonDivisor_two_mul_M_sub_two {j N : ℕ} (hj : j ≠ 0) (hN : ¬lar
     (leastNonDivisor (2 * M * j) : ℝ) - 2 = 17 + ∑ i ∈ range N,
       if largePrimeProd (i + 1) ∣ j then (largePrime (i + 1) : ℝ) - largePrime i else 0 := by
   obtain ⟨k, hk⟩ : ∃ k, largePrime k = leastNonDivisor (2 * M * j) :=
-    ⟨_, largePrime_count (leastNonDivisor_prime _) (nineteen_le_leastNonDivisor hj)⟩
+    ⟨_, largePrime_count (leastNonDivisor_prime _) (nineteen_le_leastNonDivisor_two_mul_M hj)⟩
   rw [largePrimeProd_dvd_iff hj hk, not_le] at hN
   simp_rw [largePrimeProd_dvd_iff hj hk, ← sum_filter]
   rw [show (range N).filter (· + 1 ≤ k) = range k by ext; simp; omega,
@@ -197,18 +204,24 @@ theorem leastNonDivisor_two_mul_M_sub_two {j N : ℕ} (hj : j ≠ 0) (hN : ¬lar
 noncomputable def summandG (i : ℕ) : ℝ :=
   ((largePrime (i + 1) : ℝ) - largePrime i) / ∏ j ∈ range (i + 1), (largePrime j : ℝ)
 
+/-- `G = 17 + ∑ᵢ summandG i`. -/
 theorem G_eq : G = 17 + ∑' i, summandG i :=
   rfl
 
+/-- `summandG i` in terms of `largePrimeProd`. -/
 theorem summandG_eq (i : ℕ) :
     summandG i = ((largePrime (i + 1) : ℝ) - largePrime i) / largePrimeProd (i + 1) := by
   rw [summandG, largePrimeProd, Nat.cast_prod]
 
+/-- The gaps `p'ᵢ₊₂ - p'ᵢ₊₁` are nonnegative. -/
+theorem largePrime_sub_nonneg (i : ℕ) : (0 : ℝ) ≤ (largePrime (i + 1) : ℝ) - largePrime i := by
+  rw [sub_nonneg]
+  exact_mod_cast (largePrime_strictMono i.lt_succ_self).le
+
+/-- The terms of the series defining `G` are nonnegative. -/
 theorem summandG_nonneg (i : ℕ) : 0 ≤ summandG i := by
-  have : (largePrime i : ℝ) ≤ largePrime (i + 1) := by
-    exact_mod_cast (largePrime_strictMono i.lt_succ_self).le
   rw [summandG_eq]
-  exact div_nonneg (by linarith) (Nat.cast_nonneg _)
+  exact div_nonneg (largePrime_sub_nonneg i) (Nat.cast_nonneg _)
 
 /-- By Bertrand's postulate, `summandG (n + i) ≤ (p'₁ ⋯ p'ₙ)⁻¹ ⋅ 19⁻ⁱ`. -/
 theorem summandG_add_le (n i : ℕ) :
@@ -234,7 +247,7 @@ theorem summandG_add_le (n i : ℕ) :
 theorem summable_G :
     Summable fun i : ℕ => ((largePrime (i + 1) : ℝ) - largePrime i) /
       ∏ j ∈ Finset.range (i + 1), (largePrime j : ℝ) := by
-  show Summable summandG
+  change Summable summandG
   refine Summable.of_nonneg_of_le summandG_nonneg (fun i => ?_)
     (summable_geometric_of_lt_one (r := 19⁻¹) (by norm_num) (by norm_num))
   simpa [largePrimeProd_zero] using summandG_add_le 0 i
@@ -243,12 +256,11 @@ theorem summable_G :
 dividing `d`. -/
 theorem sum_leastNonDivisor_two_mul_M_le (K : ℕ) :
     ∑ j ∈ Finset.Icc 1 K, ((leastNonDivisor (2 * M * j) : ℝ) - 2) ≤ G * K := by
-  have hK (j) (hj : j ∈ Icc 1 K) : ¬largePrimeProd K ∣ j := fun h => by
-    have := Nat.le_of_dvd (by simp at hj; omega) h
-    have := lt_largePrimeProd K
-    simp at hj
-    omega
-  rw [sum_congr rfl fun j hj => leastNonDivisor_two_mul_M_sub_two (by simp at hj; omega) (hK j hj),
+  have hK {j} (hj : j ∈ Icc 1 K) : j ≠ 0 ∧ ¬largePrimeProd K ∣ j := by
+    rw [mem_Icc] at hj
+    refine ⟨by omega, fun h => (lt_largePrimeProd K).not_ge ?_⟩
+    exact (Nat.le_of_dvd (by omega) h).trans hj.2
+  rw [sum_congr rfl fun j hj => leastNonDivisor_two_mul_M_sub_two (hK hj).1 (hK hj).2,
     sum_add_distrib, sum_comm]
   simp_rw [← sum_filter, sum_const, nsmul_eq_mul]
   rw [show Icc 1 K = Ioc 0 K from rfl]
@@ -257,9 +269,7 @@ theorem sum_leastNonDivisor_two_mul_M_le (K : ℕ) :
       ((largePrime (i + 1) : ℝ) - largePrime i) ≤ K * ∑ i ∈ range K, summandG i := by
     rw [mul_sum]
     refine sum_le_sum fun i _ => ?_
-    have hc : (0 : ℝ) ≤ (largePrime (i + 1) : ℝ) - largePrime i := by
-      rw [sub_nonneg]
-      exact_mod_cast (largePrime_strictMono i.lt_succ_self).le
+    have := largePrime_sub_nonneg i
     calc ((K / largePrimeProd (i + 1) : ℕ) : ℝ) * ((largePrime (i + 1) : ℝ) - largePrime i)
         ≤ (K / largePrimeProd (i + 1) : ℝ) * ((largePrime (i + 1) : ℝ) - largePrime i) := by
           gcongr
