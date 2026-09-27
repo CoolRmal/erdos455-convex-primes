@@ -203,44 +203,43 @@ end pmax
 
 /-- If the fieldwise comparison `((y ||| h) - x) &&& h = h` holds, with guard bits `h` on the
 fields `t` with `g t`, and `x` vanishes off those fields, then `x ≤ y` on those fields. -/
-theorem Spec.le_of_ple (hb : 0 < b) {h : ℕ} {g : ℕ → Bool} {fx fy : ℕ → ℕ}
-    (hh : Spec b n h fun t => bif g t then 2 ^ (b - 1) else 0)
+theorem Spec.le_of_ple (hb : 0 < b) {h : ℕ} {g : ℕ → Prop} [DecidablePred g] {fx fy : ℕ → ℕ}
+    (hh : Spec b n h fun t => if g t then 2 ^ (b - 1) else 0)
     (hx : Spec b n x fx) (hy : Spec b n y fy) (hfx : ∀ t < n, fx t < 2 ^ (b - 1))
-    (hfy : ∀ t < n, fy t < 2 ^ (b - 1)) (hoff : ∀ t < n, g t = false → fx t = 0)
-    (hle : ((y ||| h) - x) &&& h = h) : ∀ t < n, g t = true → fx t ≤ fy t := by
+    (hfy : ∀ t < n, fy t < 2 ^ (b - 1)) (hoff : ∀ t < n, ¬g t → fx t = 0)
+    (hle : ((y ||| h) - x) &&& h = h) : ∀ t < n, g t → fx t ≤ fy t := by
   intro t ht hg
-  have hb' : b = b - 1 + 1 := by omega
   have hyh : ∀ s, field b (y ||| h) s =
-      if s < n then (bif g s then fy s + 2 ^ (b - 1) else fy s) else 0 := by
+      if s < n then (if g s then fy s + 2 ^ (b - 1) else fy s) else 0 := by
     intro s
     rw [field_or]
-    split_ifs with hs
-    · rw [hy.field_eq s hs, hh.field_eq s hs]
-      cases g s
-      · simp
-      · simp [field_or_high (hfy s hs)]
-    · rw [hy.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs), Nat.zero_or]
+    by_cases hs : s < n
+    · rw [ite_eq_left hs, hy.field_eq s hs, hh.field_eq s hs]
+      by_cases hgs : g s
+      · rw [ite_eq_left hgs, ite_eq_left hgs, field_or_high (hfy s hs)]
+      · rw [ite_eq_right hgs, ite_eq_right hgs, Nat.or_zero]
+    · rw [ite_eq_right hs, hy.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs),
+        Nat.zero_or]
   have hsub : field b ((y ||| h) - x) t = fy t + 2 ^ (b - 1) - fx t := by
-    rw [field_sub hb, hyh, ite_eq_left ht, hg, hx.field_eq t ht]
-    · rfl
-    · intro s
-      rw [hyh]
-      split_ifs with hs
-      · rw [hx.field_eq s hs]
-        cases hgs : g s
-        · simp [hoff s hs hgs]
-        · have := hfx s hs; simp; omega
-      · rw [hx.field_of_le (not_lt.mp hs)]
+    rw [field_sub hb, hyh, ite_eq_left ht, ite_eq_left hg, hx.field_eq t ht]
+    intro s
+    rw [hyh]
+    by_cases hs : s < n
+    · rw [ite_eq_left hs, hx.field_eq s hs]
+      by_cases hgs : g s
+      · rw [ite_eq_left hgs]; have := hfx s hs; omega
+      · rw [ite_eq_right hgs, hoff s hs hgs]; exact Nat.zero_le _
+    · rw [ite_eq_right hs, hx.field_of_le (not_lt.mp hs)]
   have := congrArg (fun z => field b z t) hle
-  simp only [field_and, hsub, hh.field_eq t ht, hg, Bool.cond_true] at this
+  simp only [field_and, hsub, hh.field_eq t ht, ite_eq_left hg] at this
   have hpos := Nat.two_pow_pos (b - 1)
   rw [and_two_pow_of_lt] at this
   · split_ifs at this with h2
     · omega
     · exact absurd this.symm hpos.ne'
-  · rw [← hb']
+  · rw [show b - 1 + 1 = b by omega]
     have := hfy t ht
-    have : 2 ^ b = 2 ^ (b - 1) * 2 := by rw [← pow_succ, ← hb']
+    have : 2 ^ b = 2 ^ (b - 1) * 2 := by rw [← pow_succ]; congr 1; omega
     omega
 
 end Erdos455.Packed

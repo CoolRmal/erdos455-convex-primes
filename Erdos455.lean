@@ -5,4 +5,7 @@ import Erdos455.Packed.Field
 import Erdos455.Packed.Ops
 import Erdos455.DP.Spec
 import Erdos455.DP.Step
+import Erdos455.DP.Sound
+import Erdos455.DP.Runs
+import Erdos455.DP.Invariant
 import Erdos455.DP.Certificate
