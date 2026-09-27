@@ -6,3 +6,6 @@ import Erdos455.Packed.Ops
 import Erdos455.DP.Spec
 import Erdos455.DP.Step
 import Erdos455.DP.Certificate
+import Erdos455.Progression
+import Erdos455.ConvexSeq
+import Erdos455.Period
