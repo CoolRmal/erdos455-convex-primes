@@ -10,7 +10,7 @@ the proof: everything the proof relies on is computed and checked inside Lean.
   `9ae840ca13532737580037705f8eae55a66c9b11aa00f9be74b3828e35c0dd07`, the hash given in the
   paper. It takes about 6 minutes.
 * `packed_ref.py` — a reference implementation of the packed value iteration of
-  `Erdos455/DP/Step.lean` (two components of `M / 3` fields of 9 bits, normalisation every 32
+  `Erdos455/DP/Step.lean` (eight components of `M / 15` fields of 9 bits, normalisation every 32
   steps). `python3 packed_ref.py phi13.txt` reproduces the growth rate `18748` for the modulus
   `15015`, and similarly for `15`, `105` and `1155`.
 * `headroom.c` — the range of the values during the verification run, which justifies the field

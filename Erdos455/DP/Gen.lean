@@ -19,7 +19,7 @@ evaluating the verified computation `Layout.run` of `Erdos455.DP.Step`. A wrong 
 can only make the kernel reject a theorem.
 
 * `dp_layout% L R b` defines the layout `L` with `R` fields of `b` bits.
-* `dp_certificate% L K C φ hL hR` (with `hL : L.WF` and `hR : 3 * L.R = M`) runs one period
+* `dp_certificate% L K C φ hL hR` (with `hL : L.WF` and `hR : 15 * L.R = M`) runs one period
   of the value iteration from zero to compute the potential and defines it as the state `φ`;
   then runs one period from `φ` in chunks of `C` steps (normalising every `K` steps),
   defining the intermediate states and the theorems
@@ -44,7 +44,7 @@ theorem sim_zero (L : Layout) (st : State) (hg : st.Good L) :
   ⟨hg, fun _ _ _ _ => by simp⟩
 
 /-- A successful chunk of the value iteration (explicit arguments, for `dp_certificate%`). -/
-theorem chunk (L : Layout) (hL : L.WF) (hR : 3 * L.R = M) (φ : ℕ → ℕ) (K n lo : ℕ)
+theorem chunk (L : Layout) (hL : L.WF) (hR : 15 * L.R = M) (φ : ℕ → ℕ) (K n lo : ℕ)
     (sched : List (ℕ × ℕ)) (st st' : State) (h : L.run K n lo sched st = some ([], st'))
     (hlt : lo + n < M) (hs : st.Good L ∧ Sim L φ lo st) : st'.Good L ∧ Sim L φ (lo + n) st' :=
   hL.run hR φ K n lo sched st ([], st') h hlt hs.1 hs.2
@@ -84,13 +84,18 @@ def unitMin (L : Layout) (w : ℕ) : ℕ :=
 non-units are at most `15`, so values at least `16` are never overtaken by them. -/
 def margin : ℕ := 16
 
+/-- The eight packed vectors of a state. -/
+def entries (st : State) : List ℕ :=
+  [st.w₁.q₁, st.w₁.q₂, st.w₁.q₃, st.w₁.q₄, st.w₂.q₁, st.w₂.q₂, st.w₂.q₃, st.w₂.q₄]
+
 /-- The normalisation after a step: subtract as much as possible while keeping every value at a
 unit at least `margin`; returns the schedule entry and the normalised state. -/
 def normalizeAuto (L : Layout) (st : State) : Except String ((ℕ × ℕ) × State) := do
-  let lo := min (unitMin L st.w₁) (unitMin L st.w₂)
+  let ws := entries st
+  let lo := (ws.map (unitMin L)).foldl min (2 ^ L.b)
   let s := lo - margin
   let su := L.uones * s
-  let B := max (fieldMax L (st.w₁ - su) L.R) (fieldMax L (st.w₂ - su) L.R)
+  let B := (ws.map fun w => fieldMax L (w - su) L.R).foldl max 0
   match L.normalize s B st with
   | some st' => return ((s, B), st')
   | none => throw s!"normalisation failed (s = {s}, B = {B})"
@@ -133,9 +138,13 @@ partial def piecesE (n : ℕ) : Expr :=
   else mkApp2 (mkConst ``Nat.lor) (natE (n % 2 ^ pieceBits))
     (mkApp2 (mkConst ``Nat.shiftLeft) (piecesE (n >>> pieceBits)) (natE pieceBits))
 
-/-- The expression of a state, with its components split into pieces (see `piecesE`). -/
+/-- The expression of a quad, with its entries split into pieces (see `piecesE`). -/
+def quadE (q : Quad) : Expr :=
+  mkApp4 (mkConst ``Quad.mk) (piecesE q.q₁) (piecesE q.q₂) (piecesE q.q₃) (piecesE q.q₄)
+
+/-- The expression of a state. -/
 def stateE (st : State) : Expr :=
-  mkApp4 (mkConst ``State.mk) (piecesE st.w₁) (piecesE st.w₂) (natE st.offset) (natE st.bound)
+  mkApp4 (mkConst ``State.mk) (quadE st.w₁) (quadE st.w₂) (natE st.offset) (natE st.bound)
 
 /-- The expression of a schedule. -/
 def schedE (sched : Array (ℕ × ℕ)) : Expr :=
@@ -192,7 +201,8 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
   let period := M - 1
   let t0 ← IO.monoMsNow
   -- 1. the potential: one period from the constant function `margin`
-  let init : State := ⟨L.uones * margin, L.uones * margin, 0, margin⟩
+  let u := L.uones * margin
+  let init : State := ⟨⟨u, u, u, u⟩, ⟨u, u, u, u⟩, 0, margin⟩
   let (_, stφ) ← match runAuto L K period 0 init with
     | .ok r => pure r
     | .error e => throwError "computing the potential: {e}"

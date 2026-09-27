@@ -59,13 +59,13 @@ Proposition 11 amounts to one period of max-plus value iteration: `255254` steps
 (`Erdos455/DP/`):
 
 * **Packed representation** (`Packed/Field.lean`, `Packed/Ops.lean`). A function on the units
-  is stored as two natural numbers (the residues `≡ 1` and `≡ 2 mod 3`), each with
-  `85085 = M / 3` fields of 9 bits. The kernel evaluates arithmetic and bitwise operations on
-  `ℕ` literals with GMP, so one operation acts on 85085 residues. A step of the value iteration
+  is stored as eight natural numbers (the unit residue classes modulo 15), each with
+  `17017 = M / 15` fields of 9 bits. The kernel evaluates arithmetic and bitwise operations on
+  `ℕ` literals with GMP, so one operation acts on 17017 residues. A step of the value iteration
   is a few dozen such operations (rotations, additions, masks and a fieldwise maximum that uses
-  the top bit of every field as a guard bit) on 96 KB numbers (`DP/Step.lean`).
+  the top bit of every field as a guard bit) on 19 KB numbers (`DP/Step.lean`).
 * **Constants.** The packed constants (all ones, the guard bits, the indicator of the units
-  modulo `85085`) are closed forms such as `(2^(9·85085) - 1) / (2^9 - 1)`, whose fields are
+  modulo `17017`) are closed forms such as `(2^(9·17017) - 1) / (2^9 - 1)`, whose fields are
   known by a general lemma (`Packed/Rep.lean`); the kernel only checks five equalities of
   numbers.
 * **Soundness** is proved once and for all, for every input: a successful step dominates the
@@ -100,6 +100,8 @@ lake exe cache get
 lake build
 ```
 
-Building `Erdos455/DP/Certificate.lean` takes about 20 minutes and 4 GB of memory: it runs the
+Building `Erdos455/DP/Certificate.lean` takes about 11 minutes and 6 GB of memory: it runs the
 value iteration twice at elaboration time and has the kernel check the 499 chunks. CI runs
-`lake comparator` with the Lean kernel, nanoda and con-ron, the kernels Palomar uses.
+`lake comparator` with the Lean kernel, nanoda and con-ron, the kernels Palomar uses; on a
+10-core laptop the whole comparator run takes about 75 minutes (con-ron 40, nanoda 11 and the
+Lean kernel 8 minutes, after rebuilding and exporting the solution).

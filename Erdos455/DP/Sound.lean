@@ -11,8 +11,7 @@ import Erdos455.DP.Step
 
 For a well-formed layout (`Layout.WF`: the packed constants have the specified fields), the
 operations of `Erdos455.DP.Step` act on packed vectors as intended: `shift` rotates the fields,
-adds one and clears the non-units, `pmax` is the fieldwise maximum, `chainMax` dominates all
-the iterates of `shift`, and the comparisons `ple` are sound.
+adds one and clears the non-units, and `pmax` is the fieldwise maximum.
 
 ## Main definitions
 
@@ -21,9 +20,8 @@ the iterates of `shift`, and the comparisons `ple` are sound.
 
 ## Main statements
 
-* `Erdos455.DP.Layout.WF.shift`, `Erdos455.DP.Layout.WF.pmax`,
-  `Erdos455.DP.Layout.WF.chainMax`: the chain operations.
-* `Erdos455.DP.Layout.WF.field_shift_iterate`: the iterates of `shift` along a run of units.
+* `Erdos455.DP.Layout.WF.shift`, `Erdos455.DP.Layout.WF.pmax`: the chain step and the fieldwise
+  maximum.
 -/
 
 namespace Erdos455.DP
@@ -119,40 +117,6 @@ theorem pmax {a x A X : ℕ} (ha : L.Bounded a A) (hx : L.Bounded x X) (hA : A <
     · rw [ha.field_eq_zero (not_lt.mp ht), hx.field_eq_zero (not_lt.mp ht), max_self]
       exact hs.field_of_le (not_lt.mp ht)
   exact ⟨⟨hs.lt, fun t => by rw [hfield]; exact max_le_max (ha.2 t) (hx.2 t)⟩, hfield⟩
-
-/-- `chainMax k n x acc` dominates `acc` and the iterates `shift^[j] x` for `1 ≤ j ≤ n`. -/
-theorem chainMax {k : ℕ} (hk : k ≤ L.R) :
-    ∀ (n : ℕ) {x acc B A : ℕ}, L.Bounded x B → L.Bounded acc A → B + n < 2 ^ (L.b - 1) →
-      A < 2 ^ (L.b - 1) →
-      L.Bounded (L.chainMax k n x acc) (max A (B + n)) ∧
-        (∀ t, field L.b acc t ≤ field L.b (L.chainMax k n x acc) t) ∧
-        ∀ j, 1 ≤ j → j ≤ n → ∀ t,
-          field L.b ((L.shift k)^[j] x) t ≤ field L.b (L.chainMax k n x acc) t
-  | 0, x, acc, B, A, _, hacc, _, _ => by
-    refine ⟨hacc.mono (le_max_left _ _), fun t => le_rfl, fun j hj hjn => by omega⟩
-  | n + 1, x, acc, B, A, hx, hacc, hBn, hA => by
-    have hB1 : B + 1 < 2 ^ L.b := by have := hL.pow_pred_lt; omega
-    obtain ⟨hy, -⟩ := hL.shift hx hB1 hk
-    obtain ⟨hacc', hmax⟩ := hL.pmax hacc hy hA (by omega)
-    obtain ⟨hb, hge, hiter⟩ := chainMax hk n hy hacc' (by omega) (max_lt hA (by omega))
-    have heq : L.chainMax k (n + 1) x acc =
-        L.chainMax k n (L.shift k x) (L.pmax acc (L.shift k x)) := rfl
-    rw [heq]
-    refine ⟨hb.mono (by omega), fun t => (le_max_left _ _).trans ((hmax t).symm ▸ hge t),
-      fun j hj hjn t => ?_⟩
-    rcases Nat.lt_or_ge j 2 with hj2 | hj2
-    · obtain rfl : j = 1 := by omega
-      exact (le_max_right _ _).trans ((hmax t).symm ▸ hge t)
-    · have := hiter (j - 1) (by omega) (by omega) t
-      rwa [← Function.iterate_succ_apply, show (j - 1).succ = j by omega] at this
-
-/-- The iterates of `shift k` are bounded. -/
-theorem bounded_shift_iterate {k x B : ℕ} (hk : k ≤ L.R) (hx : L.Bounded x B) :
-    ∀ j, B + j < 2 ^ L.b → L.Bounded ((L.shift k)^[j] x) (B + j)
-  | 0, _ => hx
-  | j + 1, h => by
-    rw [Function.iterate_succ_apply']
-    exact (hL.shift (bounded_shift_iterate hk hx j (by omega)) (by omega) hk).1
 
 end WF
 

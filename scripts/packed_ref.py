@@ -4,17 +4,18 @@
 This mirrors, operation by operation, the Lean definitions in `Erdos455/DP/Step.lean`; it is
 used to cross-check them and to measure the work. It is not part of the proof.
 
-A function on the units modulo `M = 3 R` is stored as two packed numbers `w1`, `w2` (the unit
-classes modulo 3), each with `R` fields of `B` bits: field `t` of `wk` holds the value at the
-residue `r` with `r = k (mod 3)`, `r = t (mod R)`.
+A function on the units modulo `M = 15 R` is stored as eight packed numbers, one for each unit
+class modulo 15: `w[k][c]` (`k` = the class modulo 3, `c` = the class modulo 5) has `R` fields of
+`B` bits, field `t` holding the value at the residue `r = k (mod 3)`, `c (mod 5)`, `t (mod R)`.
 
-usage: packed_ref.py phi.txt [steps] [K]
+usage: packed_ref.py phi.txt [steps] [K]      (phi.txt as written by gen_phi.c, z >= 5)
 """
 import math
 import sys
 
 B = 9          # field width; bit B-1 is the guard bit
 MARGIN = 16    # the least stored value on a unit after normalisation
+CLASSES = (1, 2, 3, 4)
 
 
 def modulus(z):
@@ -54,12 +55,9 @@ def op(v, R):
     return v
 
 
-def rot(x, k, R):
-    return op(op(x << (B * k), R) | op(x >> (B * (R - k)), R), R)
-
-
 def shift(k, x, R, C):
-    return op(op(rot(x, k, R) + C[0], R) & C[2], R)
+    rot = op(op(x << (B * k), R) | op(x >> (B * (R - k)), R), R)
+    return op(op(rot + C[0], R) & C[2], R)
 
 
 def pmax(a, x, R, C):
@@ -68,21 +66,32 @@ def pmax(a, x, R, C):
     return op(x + op(t & op(c - op(c >> (B - 1), R), R), R), R)
 
 
-def chain_max(k, n, x, acc, R, C):
+def src5(delta, c):
+    return (c + 5 - delta) % 5
+
+
+def transfer(delta, k, src, dst, R, C):
+    return {c: pmax(dst[c], shift(k, src[src5(delta, c)], R, C), R, C)
+            if src5(delta, c) != 0 else dst[c] for c in CLASSES}
+
+
+def chains(delta, k, n, w, R, C):
+    X, alive, acc = dict(w), {c: True for c in CLASSES}, dict(w)
     for _ in range(n):
-        x = shift(k, x, R, C)
-        acc = pmax(acc, x, R, C)
+        alive = {c: src5(delta, c) != 0 and alive[src5(delta, c)] for c in CLASSES}
+        X = {c: shift(k, X[src5(delta, c)], R, C) if alive[c] else 0 for c in CLASSES}
+        acc = {c: pmax(acc[c], X[c], R, C) if alive[c] else acc[c] for c in CLASSES}
     return acc
 
 
 def step_comps(i, w1, w2, R, C):
-    k = 2 * i % R
+    k, delta = 2 * i % R, 2 * i % 5
     if i % 3 == 1:
-        return pmax(w1, shift(k, w2, R, C), R, C), w2
+        return transfer(delta, k, w2, w1, R, C), w2
     if i % 3 == 2:
-        return w1, pmax(w2, shift(k, w1, R, C), R, C)
+        return w1, transfer(delta, k, w1, w2, R, C)
     L = run_bound(i)
-    return chain_max(k, L, w1, w1, R, C), chain_max(k, L, w2, w2, R, C)
+    return chains(delta, k, L, w1, R, C), chains(delta, k, L, w2, R, C)
 
 
 def fields(x, R):
@@ -94,9 +103,9 @@ def unit_fields(x, R):
     return [v for t, v in enumerate(fields(x, R)) if math.gcd(t, R) == 1]
 
 
-def crt(k, t, R):
-    """The residue modulo 3 R that is k mod 3 and t mod R."""
-    return (k * R * pow(R, -1, 3) + t * 3 * pow(3, -1, R)) % (3 * R)
+def crt(k, c, t, R):
+    """The residue modulo 15 R that is k mod 3, c mod 5 and t mod R."""
+    return next(r for r in range(t, 15 * R, R) if r % 3 == k and r % 5 == c)
 
 
 def load_phi(path):
@@ -106,42 +115,39 @@ def load_phi(path):
         for line in f:
             r, v = map(int, line.split())
             phi[r] = v
-    assert M == modulus(z)
+    assert M == modulus(z) and M % 15 == 0
     return z, M, phi
 
 
 def initial(phi, R):
     lo = min(phi.values())
-    return [packed(R, lambda t, k=k: phi[crt(k, t, R)] - lo + MARGIN
-                   if math.gcd(t, R) == 1 else 0) for k in (1, 2)]
-
-
-def normalise(w1, w2, R, C):
-    vals = unit_fields(w1, R) + unit_fields(w2, R)
-    s = min(vals) - MARGIN
-    w1, w2 = w1 - s * C[3], w2 - s * C[3]
-    return w1, w2, s, max(fields(w1, R) + fields(w2, R))
+    return [{c: packed(R, lambda t, k=k, c=c: phi[crt(k, c, t, R)] - lo + MARGIN
+                       if math.gcd(t, R) == 1 else 0) for c in CLASSES} for k in (1, 2)]
 
 
 def main():
     z, M, phi = load_phi(sys.argv[1])
     steps = int(sys.argv[2]) if len(sys.argv) > 2 else M - 1
     K = int(sys.argv[3]) if len(sys.argv) > 3 else 32
-    R = M // 3
+    R = M // 15
     C = consts(R)
     w1, w2 = initial(phi, R)
-    v1, v2 = w1, w2
+    v1, v2 = dict(w1), dict(w2)
     offset = 0
-    bound = max(fields(w1, R) + fields(w2, R))
+    bound = max(max(fields(x, R)) for w in (w1, w2) for x in w.values())
     for i in range(1, steps + 1):
         bound += run_bound(i)
         assert bound < 1 << (B - 1), i
         w1, w2 = step_comps(i, w1, w2, R, C)
         if i % K == 0:
-            w1, w2, s, bound = normalise(w1, w2, R, C)
+            vals = [v for w in (w1, w2) for x in w.values() for v in unit_fields(x, R)]
+            s = min(vals) - MARGIN
+            w1 = {c: x - s * C[3] for c, x in w1.items()}
+            w2 = {c: x - s * C[3] for c, x in w2.items()}
             offset += s
-    lam = max(y - x + offset for (a, b) in ((v1, w1), (v2, w2))
-              for x, y in zip(unit_fields(a, R), unit_fields(b, R)))
+            bound = max(max(fields(x, R)) for w in (w1, w2) for x in w.values())
+    lam = max(y - x + offset for (a, b) in ((v1, w1), (v2, w2)) for c in CLASSES
+              for x, y in zip(unit_fields(a[c], R), unit_fields(b[c], R)))
     print(f"z={z} steps={steps} offset={offset} LAMBDA={lam} ops={Counter.ops} "
           f"GB={Counter.bits / 8e9:.2f}")
 

@@ -12,17 +12,21 @@ This file defines the computation that certifies the growth rate of the max-plus
 program (Proposition 11 of the paper). It is designed to be evaluated by the Lean kernel,
 whose `ℕ` arithmetic and bitwise operations run on GMP.
 
-A function on the units modulo `M = 3 * R` (with `3 ∤ R`) is stored as two packed numbers
-`w₁` and `w₂`, one for each unit residue class modulo `3`. Each has `R` fields of `b` bits:
-field `t` of `wₖ` holds the value at the residue `r` with `r ≡ k [MOD 3]` and `r ≡ t [MOD R]`.
-One bignum operation therefore acts on `R` residues at once.
+A function on the units modulo `M = 15 * R` (with `R` coprime to `15`) is stored as eight
+packed numbers, one for each unit residue class modulo `15`: `State.w₁` and `State.w₂` hold the
+classes `≡ 1` and `≡ 2 [MOD 3]`, each as a `Quad` of four packed numbers for the classes
+`≡ 1, 2, 3, 4 [MOD 5]`. Each packed number has `R` fields of `b` bits: field `t` of the entry
+`c` of `wₖ` holds the value at the residue `r` with `r ≡ k [MOD 3]`, `r ≡ c [MOD 5]` and
+`r ≡ t [MOD R]`. One bignum operation therefore acts on `R` residues at once.
 
 The step for the gap `d = 2 i` is the max-plus operator
 `(T w)(s) = max {w(r) + m : r + j d is a unit for 1 ≤ j ≤ m, r + m d = s}`. It is computed as
 the maximum of the *chains* `X₀ = w` and `X_{m+1}(s) = X_m(s - d) + 1` (on units),
 `m < runBound i`, where `runBound i` bounds the length of a run of units in an arithmetic
 progression with difference `d` (Lemma 8 of the paper). When `3 ∤ i`, a run has length at most
-one and moves the class `-d` modulo `3` to the class `d`; when `3 ∣ i`, runs stay in their class.
+one and moves the class `-d` modulo `3` to the class `d`; when `3 ∣ i`, runs stay in their class
+modulo `3`. Modulo `5`, a run moves the class `c` to `c + d`; a chain that reaches the class `0`
+dies, which is decided without looking at the values.
 
 The values are kept small by periodically subtracting a constant from all of them
 (`Layout.normalize`), which is recorded in the offset of the state. All operations check the
@@ -41,7 +45,7 @@ soundness proof in `Erdos455.DP.Sound` needs no information about the particular
 namespace Erdos455.DP
 
 /-- The parameters and packed constants of a packed layout for functions on the units of
-`ZMod (3 * R)`. The constants are stored as literals so that the kernel never has to recompute
+`ZMod (15 * R)`. The constants are stored as literals so that the kernel never has to recompute
 them; their specification is `Layout.WF`. -/
 structure Layout where
   /-- The number of fields of a component. -/
@@ -59,14 +63,47 @@ structure Layout where
   /-- Field `t < R` is `2 ^ (b - 1)` if `t` is coprime to `R`, and `0` otherwise. -/
   uhighs : ℕ
 
-/-- A packed function on the units modulo `3 * R` together with an offset: the value at a unit
-`r` is field `r % R` of `w₁` or `w₂` (according to `r % 3`), plus `offset`. All fields are at
-most `bound`. -/
+/-- Four packed numbers, for the residue classes `≡ 1, 2, 3, 4 [MOD 5]`. -/
+structure Quad where
+  /-- The class `≡ 1 [MOD 5]`. -/
+  q₁ : ℕ
+  /-- The class `≡ 2 [MOD 5]`. -/
+  q₂ : ℕ
+  /-- The class `≡ 3 [MOD 5]`. -/
+  q₃ : ℕ
+  /-- The class `≡ 4 [MOD 5]`. -/
+  q₄ : ℕ
+  deriving DecidableEq, Repr
+
+namespace Quad
+
+/-- The entry for the class `c` modulo `5` (and `0` if `c ∉ {1, 2, 3, 4}`). -/
+def get (q : Quad) (c : ℕ) : ℕ :=
+  bif c == 1 then q.q₁ else bif c == 2 then q.q₂ else bif c == 3 then q.q₃ else
+    bif c == 4 then q.q₄ else 0
+
+/-- The quad with entries `f 1, f 2, f 3, f 4`. -/
+def ofFun (f : ℕ → ℕ) : Quad :=
+  ⟨f 1, f 2, f 3, f 4⟩
+
+/-- Subtract `su` from every entry of a quad. -/
+def sub (q : Quad) (su : ℕ) : Quad :=
+  ⟨q.q₁ - su, q.q₂ - su, q.q₃ - su, q.q₄ - su⟩
+
+/-- Whether `p` holds for all four entries. -/
+def all (q : Quad) (p : ℕ → Bool) : Bool :=
+  p q.q₁ && p q.q₂ && p q.q₃ && p q.q₄
+
+end Quad
+
+/-- A packed function on the units modulo `15 * R` together with an offset: the value at a unit
+`r` is field `r % R` of the entry `r % 5` of `w₁` or `w₂` (according to `r % 3`), plus `offset`.
+All fields are at most `bound`. -/
 structure State where
   /-- The values at the residues `≡ 1 [MOD 3]`. -/
-  w₁ : ℕ
+  w₁ : Quad
   /-- The values at the residues `≡ 2 [MOD 3]`. -/
-  w₂ : ℕ
+  w₂ : Quad
   /-- The amount subtracted from all values so far. -/
   offset : ℕ
   /-- An upper bound for all fields of `w₁` and `w₂`. -/
@@ -105,18 +142,41 @@ def pmax (a x : ℕ) : ℕ :=
   let c := t &&& L.highs
   x + (t &&& (c - (c >>> (L.b - 1))))
 
-/-- `n` further chain steps within one component: `chainMax k n x acc` is the fieldwise
-maximum of `acc` and `shift^[j] x` for `1 ≤ j ≤ n`. -/
-def chainMax (k : ℕ) (n : ℕ) : ℕ → ℕ → ℕ :=
-  Nat.rec (motive := fun _ => ℕ → ℕ → ℕ) (fun _ acc => acc)
-    (fun _ ih x acc => let y := L.shift k x; ih y (L.pmax acc y)) n
+/-- The class modulo `5` that the move by `δ` sends to `c`: `(c - δ) % 5`. -/
+def src5 (δ c : ℕ) : ℕ :=
+  (c + 5 - δ) % 5
 
-/-- The max-plus step for the gap `2 i` on the two components. -/
-def stepComps (i w₁ w₂ : ℕ) : ℕ × ℕ :=
+/-- A move by `d` from one class modulo `3` to another (for `3 ∤ i`): every entry `c` of `dst`
+is replaced by its maximum with the shifted entry `c - d` of `src`, unless `c - d ≡ 0 [MOD 5]`
+(then there is no run into `c`). Here `δ = d % 5` and `k = d % R`. -/
+def transfer (δ k : ℕ) (src dst : Quad) : Quad :=
+  Quad.ofFun fun c =>
+    bif src5 δ c != 0 then L.pmax (dst.get c) (L.shift k (src.get (src5 δ c))) else dst.get c
+
+/-- One chain step within a class modulo `3` (for `3 ∣ i`): the chain `X` moves by `d` (the
+entry `c` comes from the entry `c - d` modulo `5`), and the flags `alive` record whether the
+chain into a class modulo `5` is still defined; a chain dies when it would come from the class
+`0`. -/
+def chainStep (δ k : ℕ) (p : Quad × (ℕ → Bool)) : Quad × (ℕ → Bool) :=
+  let alive := fun c => src5 δ c != 0 && p.2 (src5 δ c)
+  (Quad.ofFun fun c => bif alive c then L.shift k (p.1.get (src5 δ c)) else 0, alive)
+
+/-- Fold the live entries of a chain into the accumulator by a fieldwise maximum. -/
+def accum (acc : Quad) (p : Quad × (ℕ → Bool)) : Quad :=
+  Quad.ofFun fun c => bif p.2 c then L.pmax (acc.get c) (p.1.get c) else acc.get c
+
+/-- `n` further chain steps within one class modulo `3`, accumulated into `acc`. -/
+def chains (δ k : ℕ) (n : ℕ) : Quad × (ℕ → Bool) → Quad → Quad :=
+  Nat.rec (motive := fun _ => Quad × (ℕ → Bool) → Quad → Quad) (fun _ acc => acc)
+    (fun _ ih p acc => let p' := L.chainStep δ k p; ih p' (L.accum acc p')) n
+
+/-- The max-plus step for the gap `2 i` on the two classes modulo `3`. -/
+def stepComps (i : ℕ) (w₁ w₂ : Quad) : Quad × Quad :=
   let k := 2 * i % L.R
-  bif i % 3 == 1 then (L.pmax w₁ (L.shift k w₂), w₂)
-  else bif i % 3 == 2 then (w₁, L.pmax w₂ (L.shift k w₁))
-  else (L.chainMax k (runBound i) w₁ w₁, L.chainMax k (runBound i) w₂ w₂)
+  let δ := 2 * i % 5
+  bif i % 3 == 1 then (L.transfer δ k w₂ w₁, w₂)
+  else bif i % 3 == 2 then (w₁, L.transfer δ k w₁ w₂)
+  else (L.chains δ k (runBound i) (w₁, (· != 0)) w₁, L.chains δ k (runBound i) (w₂, (· != 0)) w₂)
 
 /-- Step `i` of the value iteration, failing if a field could reach the guard bit. -/
 def step (i : ℕ) (st : State) : Option State :=
@@ -131,10 +191,11 @@ and check that the new fields are at most `B`. -/
 def normalize (s B : ℕ) (st : State) : Option State :=
   let su := L.uones * s
   let bo := L.ones * B
-  let w₁ := st.w₁ - su
-  let w₂ := st.w₂ - su
-  bif s < 2 ^ (L.b - 1) && B < 2 ^ (L.b - 1) && ple L.uhighs su st.w₁ &&
-      ple L.uhighs su st.w₂ && ple L.highs w₁ bo && ple L.highs w₂ bo then
+  let w₁ := st.w₁.sub su
+  let w₂ := st.w₂.sub su
+  bif s < 2 ^ (L.b - 1) && B < 2 ^ (L.b - 1) && st.w₁.all (ple L.uhighs su) &&
+      st.w₂.all (ple L.uhighs su) && w₁.all (fun x => ple L.highs x bo) &&
+      w₂.all (fun x => ple L.highs x bo) then
     some ⟨w₁, w₂, st.offset + s, B⟩
   else none
 

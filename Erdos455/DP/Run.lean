@@ -29,31 +29,65 @@ theorem cond_eq_some {α : Type*} {c : Bool} {x y : α} :
     (bif c then some x else none) = some y ↔ c = true ∧ x = y := by
   cases c <;> simp
 
+namespace Quad
+
+/-- Whether `p` holds for all four pairs of corresponding entries. -/
+def all₂ (p : ℕ → ℕ → Bool) (q q' : Quad) : Bool :=
+  p q.q₁ q'.q₁ && p q.q₂ q'.q₂ && p q.q₃ q'.q₃ && p q.q₄ q'.q₄
+
+/-- A property of all four entries holds for every entry `get c`, `c ∈ {1, 2, 3, 4}`. -/
+theorem all_get {q : Quad} {p : ℕ → Bool} (h : q.all p = true) {c : ℕ} (hc : c % 5 = c)
+    (hc0 : c ≠ 0) : p (q.get c) = true := by
+  simp only [all, Bool.and_eq_true] at h
+  have : c = 1 ∨ c = 2 ∨ c = 3 ∨ c = 4 := by omega
+  rcases this with rfl | rfl | rfl | rfl
+  exacts [h.1.1.1, h.1.1.2, h.1.2, h.2]
+
+/-- A property of all four pairs of entries holds for every pair `get c`, `c ∈ {1, 2, 3, 4}`. -/
+theorem all₂_get {q q' : Quad} {p : ℕ → ℕ → Bool} (h : all₂ p q q' = true) {c : ℕ}
+    (hc : c % 5 = c) (hc0 : c ≠ 0) : p (q.get c) (q'.get c) = true := by
+  simp only [all₂, Bool.and_eq_true] at h
+  have : c = 1 ∨ c = 2 ∨ c = 3 ∨ c = 4 := by omega
+  rcases this with rfl | rfl | rfl | rfl
+  exacts [h.1.1.1, h.1.1.2, h.1.2, h.2]
+
+/-- The entries of `q.sub su` are those of `q` minus `su`. -/
+theorem get_sub (q : Quad) (su c : ℕ) : (q.sub su).get c = q.get c - su := by
+  by_cases hc : c = 1 ∨ c = 2 ∨ c = 3 ∨ c = 4
+  · rcases hc with rfl | rfl | rfl | rfl <;> rfl
+  · rw [get_of_not_mem _ hc, get_of_not_mem _ hc, Nat.zero_sub]
+
+end Quad
+
 namespace Layout
 
 variable {L : Layout}
 
+/-- A kernel-checkable test that a packed vector has at most `R` fields, all at most `B`. -/
+def boundedB (L : Layout) (B x : ℕ) : Bool :=
+  x < 2 ^ (L.b * L.R) && x &&& L.highs == 0 && ple L.highs x (L.ones * B)
+
 /-- A kernel-checkable test of the invariant `State.Good`. -/
 def goodB (L : Layout) (st : State) : Bool :=
-  st.bound < 2 ^ (L.b - 1) && st.w₁ < 2 ^ (L.b * L.R) && st.w₂ < 2 ^ (L.b * L.R) &&
-    st.w₁ &&& L.highs == 0 && st.w₂ &&& L.highs == 0 &&
-    ple L.highs st.w₁ (L.ones * st.bound) && ple L.highs st.w₂ (L.ones * st.bound)
+  st.bound < 2 ^ (L.b - 1) && st.w₁.all (L.boundedB st.bound) && st.w₂.all (L.boundedB st.bound)
 
 /-- A kernel-checkable test of `value st r ≤ value st₀ r + Λ` for all units `r`. -/
 def finalB (L : Layout) (st₀ st : State) (Λ : ℕ) : Bool :=
   st.offset ≤ st₀.offset + Λ && st₀.bound + (st₀.offset + Λ - st.offset) < 2 ^ (L.b - 1) &&
-    ple L.highs st.w₁ (st₀.w₁ + L.ones * (st₀.offset + Λ - st.offset)) &&
-    ple L.highs st.w₂ (st₀.w₂ + L.ones * (st₀.offset + Λ - st.offset))
+    Quad.all₂ (fun x y => ple L.highs x (y + L.ones * (st₀.offset + Λ - st.offset))) st.w₁
+      st₀.w₁ &&
+    Quad.all₂ (fun x y => ple L.highs x (y + L.ones * (st₀.offset + Λ - st.offset))) st.w₂
+      st₀.w₂
 
 /-- A successful normalisation: all its checks pass, and it subtracts `s` from the fields at the
 units. -/
 theorem normalize_eq_some {s B : ℕ} {st st' : State} :
     L.normalize s B st = some st' ↔
-      (s < 2 ^ (L.b - 1) ∧ B < 2 ^ (L.b - 1) ∧ ple L.uhighs (L.uones * s) st.w₁ = true ∧
-        ple L.uhighs (L.uones * s) st.w₂ = true ∧
-        ple L.highs (st.w₁ - L.uones * s) (L.ones * B) = true ∧
-        ple L.highs (st.w₂ - L.uones * s) (L.ones * B) = true) ∧
-      ⟨st.w₁ - L.uones * s, st.w₂ - L.uones * s, st.offset + s, B⟩ = st' := by
+      (s < 2 ^ (L.b - 1) ∧ B < 2 ^ (L.b - 1) ∧ st.w₁.all (ple L.uhighs (L.uones * s)) = true ∧
+        st.w₂.all (ple L.uhighs (L.uones * s)) = true ∧
+        (st.w₁.sub (L.uones * s)).all (fun x => ple L.highs x (L.ones * B)) = true ∧
+        (st.w₂.sub (L.uones * s)).all (fun x => ple L.highs x (L.ones * B)) = true) ∧
+      ⟨st.w₁.sub (L.uones * s), st.w₂.sub (L.uones * s), st.offset + s, B⟩ = st' := by
   simp only [Layout.normalize, cond_eq_some, Bool.and_eq_true, decide_eq_true_eq, and_assoc]
 
 namespace WF
@@ -62,8 +96,9 @@ variable (hL : L.WF)
 include hL
 
 /-- The guard bits of `highs`, in the form used by `Spec.le_of_ple`. -/
-theorem highs_spec : Spec L.b L.R L.highs fun t => if (fun _ => True) t then 2 ^ (L.b - 1) else 0 :=
-  by simpa using hL.highs
+theorem highs_spec :
+    Spec L.b L.R L.highs fun t => if (fun _ => True) t then 2 ^ (L.b - 1) else 0 := by
+  simpa using hL.highs
 
 /-- The fieldwise comparison `ple L.highs` is sound. -/
 theorem le_of_ple_highs {x y X Y : ℕ} (hx : L.Bounded x X) (hy : L.Bounded y Y)
@@ -85,65 +120,85 @@ theorem bounded_ones_mul {B : ℕ} (hB : B < 2 ^ L.b) : L.Bounded (L.ones * B) B
   · rw [hs.field_eq t ht, one_mul]
   · rw [hs.field_of_le (not_lt.mp ht)]; exact Nat.zero_le _
 
+/-- Normalising one packed vector: the checks give the bound `B` and the subtraction of `s` at
+the units. -/
+theorem normalize_entry {s B C w : ℕ} (hs : s < 2 ^ (L.b - 1)) (hB : B < 2 ^ (L.b - 1))
+    (hC : C < 2 ^ (L.b - 1)) (hw : L.Bounded w C) (hlo : ple L.uhighs (L.uones * s) w = true)
+    (hhi : ple L.highs (w - L.uones * s) (L.ones * B) = true) :
+    L.Bounded (w - L.uones * s) B ∧ ∀ t < L.R, Nat.Coprime t L.R →
+      s ≤ field L.b w t ∧ field L.b (w - L.uones * s) t = field L.b w t - s := by
+  have hb := hL.b_pos
+  have hpow := hL.pow_pred_lt
+  have hsu : Spec L.b L.R (L.uones * s) fun t => (if Nat.Coprime t L.R then 1 else 0) * s :=
+    hL.uones.mul_const hb fun t _ => by split_ifs <;> omega
+  have hle := Spec.le_of_ple hb hL.uhighs hsu hw.spec
+    (fun t _ => by split_ifs <;> omega) (fun t _ => (hw.2 t).trans_lt hC)
+    (fun t _ hc => by simp [hc]) (by simpa [ple] using hlo)
+  have hle' : ∀ t, field L.b (L.uones * s) t ≤ field L.b w t := by
+    intro t
+    by_cases ht : t < L.R
+    · rw [hsu.field_eq t ht]
+      by_cases hc : Nat.Coprime t L.R
+      · exact hle t ht hc
+      · simp [hc]
+    · rw [hsu.field_of_le (not_lt.mp ht)]; exact Nat.zero_le _
+  have hsub : ∀ t, field L.b (w - L.uones * s) t =
+      field L.b w t - field L.b (L.uones * s) t := fun t => field_sub hb hle'
+  have hwb : L.Bounded (w - L.uones * s) C :=
+    ⟨lt_of_le_of_lt (Nat.sub_le _ _) hw.1,
+      fun t => by rw [hsub]; exact (Nat.sub_le _ _).trans (hw.2 t)⟩
+  have hbo := hL.bounded_ones_mul (B := B) (by omega)
+  have hup := hL.le_of_ple_highs hwb hbo.1 hC hB hhi
+  refine ⟨⟨hwb.1, fun t => ?_⟩, fun t ht hc => ?_⟩
+  · by_cases ht : t < L.R
+    · rw [← hbo.2 t ht]; exact hup t
+    · rw [hwb.field_eq_zero (not_lt.mp ht)]; exact Nat.zero_le _
+  · have h1 := hle' t
+    rw [hsu.field_eq t ht, ite_eq_left hc, one_mul] at h1
+    rw [hsub, hsu.field_eq t ht, ite_eq_left hc, one_mul]
+    exact ⟨h1, rfl⟩
+
 /-- **Normalisation** subtracts `s` from every value, and adds `s` to the offset: it does not
 change the values at the units. -/
 theorem normalize {s B : ℕ} {st st' : State} (h : L.normalize s B st = some st')
     (hg : st.Good L) :
     st'.Good L ∧ st'.offset = st.offset + s ∧
-      ∀ r, r % 3 ≠ 0 → Nat.Coprime (r % L.R) L.R → st'.value L r = st.value L r := by
+      ∀ r, r % 3 ≠ 0 → r % 5 ≠ 0 → Nat.Coprime (r % L.R) L.R →
+        st'.value L r = st.value L r := by
   obtain ⟨⟨hs, hB, h₁, h₂, h₁', h₂'⟩, rfl⟩ := normalize_eq_some.mp h
-  have hb := hL.b_pos
-  have hpow := hL.pow_pred_lt
-  have hsu : Spec L.b L.R (L.uones * s) fun t => (if Nat.Coprime t L.R then 1 else 0) * s :=
-    hL.uones.mul_const hb fun t _ => by split_ifs <;> omega
-  -- one component
-  have comp : ∀ w, L.Bounded w st.bound → ple L.uhighs (L.uones * s) w = true →
-      ple L.highs (w - L.uones * s) (L.ones * B) = true →
-      L.Bounded (w - L.uones * s) B ∧ ∀ t < L.R, Nat.Coprime t L.R →
-        s ≤ field L.b w t ∧ field L.b (w - L.uones * s) t = field L.b w t - s := by
-    intro w hw hlo hhi
-    have hle := Spec.le_of_ple hb hL.uhighs hsu hw.spec
-      (fun t _ => by split_ifs <;> omega) (fun t _ => (hw.2 t).trans_lt hg.bound_lt)
-      (fun t _ hc => by simp [hc]) (by simpa [ple] using hlo)
-    have hle' : ∀ t, field L.b (L.uones * s) t ≤ field L.b w t := by
-      intro t
-      by_cases ht : t < L.R
-      · rw [hsu.field_eq t ht]
-        by_cases hc : Nat.Coprime t L.R
-        · exact hle t ht hc
-        · simp [hc]
-      · rw [hsu.field_of_le (not_lt.mp ht)]; exact Nat.zero_le _
-    have hsub : ∀ t, field L.b (w - L.uones * s) t =
-        field L.b w t - field L.b (L.uones * s) t := fun t => field_sub hb hle'
-    have hwb : L.Bounded (w - L.uones * s) st.bound :=
-      ⟨lt_of_le_of_lt (Nat.sub_le _ _) hw.1,
-        fun t => by rw [hsub]; exact (Nat.sub_le _ _).trans (hw.2 t)⟩
-    have hbo := hL.bounded_ones_mul (B := B) (by omega)
-    have hup := hL.le_of_ple_highs hwb hbo.1 hg.bound_lt hB hhi
-    refine ⟨⟨hwb.1, fun t => ?_⟩, fun t ht hc => ?_⟩
-    · by_cases ht : t < L.R
-      · rw [← hbo.2 t ht]; exact hup t
-      · rw [hwb.field_eq_zero (not_lt.mp ht)]; exact Nat.zero_le _
-    · have h1 := hle' t
-      rw [hsu.field_eq t ht, ite_eq_left hc, one_mul] at h1
-      rw [hsub, hsu.field_eq t ht, ite_eq_left hc, one_mul]
-      exact ⟨h1, rfl⟩
-  obtain ⟨hb₁, hv₁⟩ := comp _ hg.w₁ h₁ h₁'
-  obtain ⟨hb₂, hv₂⟩ := comp _ hg.w₂ h₂ h₂'
-  refine ⟨⟨hB, hb₁, hb₂⟩, rfl, fun r hr hc => ?_⟩
+  have entry : ∀ q : Quad, q.Bounded L st.bound → q.all (ple L.uhighs (L.uones * s)) = true →
+      (q.sub (L.uones * s)).all (fun x => ple L.highs x (L.ones * B)) = true → ∀ c,
+        c % 5 = c → c ≠ 0 →
+        L.Bounded ((q.sub (L.uones * s)).get c) B ∧ ∀ t < L.R, Nat.Coprime t L.R →
+          s ≤ field L.b (q.get c) t ∧
+            field L.b ((q.sub (L.uones * s)).get c) t = field L.b (q.get c) t - s := by
+    intro q hq hlo hhi c hc hc0
+    rw [Quad.get_sub]
+    have := Quad.all_get hhi hc hc0
+    rw [Quad.get_sub] at this
+    exact hL.normalize_entry hs hB hg.bound_lt (hq.get c) (Quad.all_get hlo hc hc0) this
+  have hbq : ∀ q : Quad, q.Bounded L st.bound → q.all (ple L.uhighs (L.uones * s)) = true →
+      (q.sub (L.uones * s)).all (fun x => ple L.highs x (L.ones * B)) = true →
+      (q.sub (L.uones * s)).Bounded L B := fun q hq hlo hhi =>
+    ⟨(entry q hq hlo hhi 1 rfl one_ne_zero).1, (entry q hq hlo hhi 2 rfl two_ne_zero).1,
+      (entry q hq hlo hhi 3 rfl three_ne_zero).1, (entry q hq hlo hhi 4 rfl four_ne_zero).1⟩
+  refine ⟨⟨hB, hbq _ hg.w₁ h₁ h₁', hbq _ hg.w₂ h₂ h₂'⟩, rfl, fun r hr3 hr5 hc => ?_⟩
+  have ht := Nat.mod_lt r hL.R_pos
   simp only [State.value]
   rcases (by omega : r % 3 = 1 ∨ r % 3 = 2) with h3 | h3
   · rw [h3, State.comp_one, State.comp_one]
-    obtain ⟨hle, heq⟩ := hv₁ _ (Nat.mod_lt _ hL.R_pos) hc
+    obtain ⟨-, hv⟩ := entry _ hg.w₁ h₁ h₁' (r % 5) (Nat.mod_mod _ _) hr5
+    obtain ⟨hle, heq⟩ := hv _ ht hc
     dsimp only
     omega
   · rw [h3, State.comp_two, State.comp_two]
-    obtain ⟨hle, heq⟩ := hv₂ _ (Nat.mod_lt _ hL.R_pos) hc
+    obtain ⟨-, hv⟩ := entry _ hg.w₂ h₂ h₂' (r % 5) (Nat.mod_mod _ _) hr5
+    obtain ⟨hle, heq⟩ := hv _ ht hc
     dsimp only
     omega
 
 /-- One step of a run propagates the conclusion of the value iteration. -/
-theorem runStep (hR : 3 * L.R = M) (φ : ℕ → ℕ) {K lo : ℕ}
+theorem runStep (hR : 15 * L.R = M) (φ : ℕ → ℕ) {K lo : ℕ}
     {k : List (ℕ × ℕ) → State → Option (List (ℕ × ℕ) × State)} {sched : List (ℕ × ℕ)}
     {st : State} {res : List (ℕ × ℕ) × State} (h : L.runStep K lo k sched st = some res)
     (hlo : lo + 1 < M) (hg : st.Good L) (hs : Sim L φ lo st) :
@@ -177,12 +232,12 @@ theorem runStep (hR : 3 * L.R = M) (φ : ℕ → ℕ) {K lo : ℕ}
     obtain ⟨hg₂, -, hval⟩ := hL.normalize hnorm hg₁
     refine ⟨sched', st₂, h, hg₂, fun d t μ hp => ?_⟩
     have hc := hp.coprime (lo + 1) le_rfl
-    rw [hval _ (mod_three_ne_zero hc) (coprime_mod_R hR hc)]
+    rw [hval _ (mod_three_ne_zero hc) (mod_five_ne_zero hc) (coprime_mod_R hR hc)]
     exact hs₁ d t μ hp
 
 /-- **Soundness of a run**: a successful run of `n` steps from a state satisfying the conclusion
 of the value iteration after `lo` steps satisfies it after `lo + n` steps. -/
-theorem run (hR : 3 * L.R = M) (φ : ℕ → ℕ) (K : ℕ) :
+theorem run (hR : 15 * L.R = M) (φ : ℕ → ℕ) (K : ℕ) :
     ∀ (n lo : ℕ) (sched : List (ℕ × ℕ)) (st : State) (res : List (ℕ × ℕ) × State),
       L.run K n lo sched st = some res → lo + n < M → st.Good L → Sim L φ lo st →
         res.2.Good L ∧ Sim L φ (lo + n) res.2
@@ -210,34 +265,42 @@ theorem field_lt_of_and_highs {x : ℕ} (hx : x < 2 ^ (L.b * L.R)) (h : x &&& L.
     · omega
   · rw [field_eq_zero_of_lt_pow hx (not_lt.mp ht)]; exact Nat.two_pow_pos _
 
+/-- Soundness of the test `boundedB`. -/
+theorem bounded_of_boundedB {B x : ℕ} (hB : B < 2 ^ (L.b - 1)) (h : L.boundedB B x = true) :
+    L.Bounded x B := by
+  simp only [boundedB, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at h
+  obtain ⟨⟨hx, hh⟩, hp⟩ := h
+  have hpow := hL.pow_pred_lt
+  have hbo := hL.bounded_ones_mul (B := B) (by omega)
+  have hxb : L.Bounded x (2 ^ (L.b - 1) - 1) :=
+    ⟨hx, fun t => by have := hL.field_lt_of_and_highs hx hh t; omega⟩
+  have hle := hL.le_of_ple_highs hxb hbo.1 (by omega) hB hp
+  refine ⟨hx, fun t => ?_⟩
+  by_cases ht : t < L.R
+  · rw [← hbo.2 t ht]; exact hle t
+  · rw [hxb.field_eq_zero (not_lt.mp ht)]; exact Nat.zero_le _
+
 /-- Soundness of the test `goodB` of the invariant. -/
 theorem good_of_goodB {st : State} (h : L.goodB st = true) : st.Good L := by
-  simp only [goodB, Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at h
-  obtain ⟨⟨⟨⟨⟨⟨hB, h₁⟩, h₂⟩, hh₁⟩, hh₂⟩, hp₁⟩, hp₂⟩ := h
-  have hpow := hL.pow_pred_lt
-  have hbo := hL.bounded_ones_mul (B := st.bound) (by omega)
-  have comp : ∀ w, w < 2 ^ (L.b * L.R) → w &&& L.highs = 0 →
-      ple L.highs w (L.ones * st.bound) = true → L.Bounded w st.bound := by
-    intro w hw hh hp
-    have hwb : L.Bounded w (2 ^ (L.b - 1) - 1) :=
-      ⟨hw, fun t => by have := hL.field_lt_of_and_highs hw hh t; omega⟩
-    have hle := hL.le_of_ple_highs hwb hbo.1 (by omega) hB hp
-    refine ⟨hw, fun t => ?_⟩
-    by_cases ht : t < L.R
-    · rw [← hbo.2 t ht]; exact hle t
-    · rw [hwb.field_eq_zero (not_lt.mp ht)]; exact Nat.zero_le _
-  exact ⟨hB, comp _ h₁ hh₁ hp₁, comp _ h₂ hh₂ hp₂⟩
+  simp only [goodB, Bool.and_eq_true, decide_eq_true_eq] at h
+  obtain ⟨⟨hB, h₁⟩, h₂⟩ := h
+  have hq : ∀ q : Quad, q.all (L.boundedB st.bound) = true → q.Bounded L st.bound :=
+    fun q hq => ⟨hL.bounded_of_boundedB hB (Quad.all_get (c := 1) hq rfl one_ne_zero),
+      hL.bounded_of_boundedB hB (Quad.all_get (c := 2) hq rfl two_ne_zero),
+      hL.bounded_of_boundedB hB (Quad.all_get (c := 3) hq rfl three_ne_zero),
+      hL.bounded_of_boundedB hB (Quad.all_get (c := 4) hq rfl four_ne_zero)⟩
+  exact ⟨hB, hq _ h₁, hq _ h₂⟩
 
 /-- Soundness of the final comparison `finalB`: `value st r ≤ value st₀ r + Λ` at the units. -/
 theorem value_le_of_finalB {st₀ st : State} {Λ : ℕ} (h : L.finalB st₀ st Λ = true)
     (hg₀ : st₀.Good L) (hg : st.Good L) :
-    ∀ r, r % 3 ≠ 0 → st.value L r ≤ st₀.value L r + Λ := by
+    ∀ r, r % 3 ≠ 0 → r % 5 ≠ 0 → st.value L r ≤ st₀.value L r + Λ := by
   simp only [finalB, Bool.and_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨⟨hoff, hc⟩, hp₁⟩, hp₂⟩ := h
   set c := st₀.offset + Λ - st.offset with hcdef
   have hpow := hL.pow_pred_lt
   have hbo := hL.bounded_ones_mul (B := c) (by omega)
-  have comp : ∀ w, L.Bounded w st₀.bound → L.Bounded (w + L.ones * c) (st₀.bound + c) ∧
+  have entry : ∀ w, L.Bounded w st₀.bound → L.Bounded (w + L.ones * c) (st₀.bound + c) ∧
       ∀ t, field L.b (w + L.ones * c) t = field L.b w t + field L.b (L.ones * c) t := by
     intro w hw
     have hadd : ∀ t, field L.b (w + L.ones * c) t = field L.b w t + field L.b (L.ones * c) t :=
@@ -245,21 +308,24 @@ theorem value_le_of_finalB {st₀ st : State} {Λ : ℕ} (h : L.finalB st₀ st 
     refine ⟨⟨lt_pow_of_field_eq_zero hL.b_pos fun t ht => ?_, fun t => ?_⟩, hadd⟩
     · rw [hadd, hw.field_eq_zero ht, hbo.1.field_eq_zero ht]
     · rw [hadd]; have := hw.2 t; have := hbo.1.2 t; omega
-  obtain ⟨hy₁, hadd₁⟩ := comp _ hg₀.w₁
-  obtain ⟨hy₂, hadd₂⟩ := comp _ hg₀.w₂
-  have hle₁ := hL.le_of_ple_highs hg.w₁ hy₁ hg.bound_lt hc hp₁
-  have hle₂ := hL.le_of_ple_highs hg.w₂ hy₂ hg.bound_lt hc hp₂
-  intro r hr
+  have key : ∀ (q q₀ : Quad), q.Bounded L st.bound → q₀.Bounded L st₀.bound →
+      Quad.all₂ (fun x y => ple L.highs x (y + L.ones * c)) q q₀ = true →
+      ∀ c₅, c₅ % 5 = c₅ → c₅ ≠ 0 → ∀ t < L.R,
+        field L.b (q.get c₅) t ≤ field L.b (q₀.get c₅) t + c := by
+    intro q q₀ hq hq₀ hall c₅ h5 h50 t ht
+    obtain ⟨hy, hadd⟩ := entry _ (hq₀.get c₅)
+    have := hL.le_of_ple_highs (hq.get c₅) hy hg.bound_lt hc (Quad.all₂_get hall h5 h50) t
+    rw [hadd, hbo.2 t ht] at this
+    exact this
+  intro r hr3 hr5
   have ht := Nat.mod_lt r hL.R_pos
   simp only [State.value]
   rcases (by omega : r % 3 = 1 ∨ r % 3 = 2) with h3 | h3
   · rw [h3, State.comp_one, State.comp_one]
-    have := hle₁ (r % L.R)
-    rw [hadd₁, hbo.2 _ ht] at this
+    have := key _ _ hg.w₁ hg₀.w₁ hp₁ (r % 5) (Nat.mod_mod _ _) hr5 _ ht
     omega
   · rw [h3, State.comp_two, State.comp_two]
-    have := hle₂ (r % L.R)
-    rw [hadd₂, hbo.2 _ ht] at this
+    have := key _ _ hg.w₂ hg₀.w₂ hp₂ (r % 5) (Nat.mod_mod _ _) hr5 _ ht
     omega
 
 end WF

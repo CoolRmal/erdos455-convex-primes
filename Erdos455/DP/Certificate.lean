@@ -30,11 +30,11 @@ namespace Erdos455
 
 namespace DP
 
--- The packed layout for the units modulo `M = 3 · 85085`: two components of `85085` fields of
--- `9` bits.
-dp_layout% layout17 85085 9
+-- The packed layout for the units modulo `M = 15 · 17017`: eight components (the unit classes
+-- modulo `15`) of `17017` fields of `9` bits.
+dp_layout% layout17 17017 9
 
-theorem layout17_R : 3 * layout17.R = M := by decide +kernel
+theorem layout17_R : 15 * layout17.R = M := by decide +kernel
 
 namespace layout17
 
@@ -43,35 +43,34 @@ open Packed
 /-! The packed constants of `layout17` are closed forms (checked by the kernel with a few GMP
 operations), whose fields are known by `Erdos455.Packed.spec_unitInd`. -/
 
-/-- The primes dividing `85085`. -/
-def primes : List ℕ := [5, 7, 11, 13, 17]
+/-- The primes dividing `17017`. -/
+def primes : List ℕ := [7, 11, 13, 17]
 
 theorem b_eq : layout17.b = 9 := by decide +kernel
 
-theorem R_eq : layout17.R = 85085 := by decide +kernel
+theorem R_eq : layout17.R = 17017 := by decide +kernel
 
-theorem ones_eq : layout17.ones = repC 9 1 85085 := by decide +kernel
+theorem ones_eq : layout17.ones = repC 9 1 17017 := by decide +kernel
 
-theorem highs_eq : layout17.highs = repC 9 1 85085 * 2 ^ 8 := by decide +kernel
+theorem highs_eq : layout17.highs = repC 9 1 17017 * 2 ^ 8 := by decide +kernel
 
-theorem uones_eq : layout17.uones = unitInd 9 85085 primes := by decide +kernel
+theorem uones_eq : layout17.uones = unitInd 9 17017 primes := by decide +kernel
 
-theorem umask_eq : layout17.umask = unitInd 9 85085 primes * (2 ^ 9 - 1) := by decide +kernel
+theorem umask_eq : layout17.umask = unitInd 9 17017 primes * (2 ^ 9 - 1) := by decide +kernel
 
-theorem uhighs_eq : layout17.uhighs = unitInd 9 85085 primes * 2 ^ 8 := by decide +kernel
+theorem uhighs_eq : layout17.uhighs = unitInd 9 17017 primes * 2 ^ 8 := by decide +kernel
 
-/-- The units modulo `85085` are the numbers divisible by none of its prime factors. -/
-theorem coprime_iff (t : ℕ) : Nat.Coprime t 85085 ↔ ∀ p ∈ primes, ¬p ∣ t := by
+/-- The units modulo `17017` are the numbers divisible by none of its prime factors. -/
+theorem coprime_iff (t : ℕ) : Nat.Coprime t 17017 ↔ ∀ p ∈ primes, ¬p ∣ t := by
   have hp : ∀ p ∈ primes, p.Prime := by decide
-  rw [show (85085 : ℕ) = 5 * 7 * 11 * 13 * 17 by norm_num]
+  rw [show (17017 : ℕ) = 7 * 11 * 13 * 17 by norm_num]
   simp only [Nat.coprime_mul_iff_right, primes, List.mem_cons, List.not_mem_nil, or_false,
     forall_eq_or_imp, forall_eq]
   simp only [primes, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp,
     forall_eq] at hp
   rw [Nat.coprime_comm.trans (hp.1.coprime_iff_not_dvd), Nat.coprime_comm.trans
     (hp.2.1.coprime_iff_not_dvd), Nat.coprime_comm.trans (hp.2.2.1.coprime_iff_not_dvd),
-    Nat.coprime_comm.trans (hp.2.2.2.1.coprime_iff_not_dvd),
-    Nat.coprime_comm.trans (hp.2.2.2.2.coprime_iff_not_dvd)]
+    Nat.coprime_comm.trans (hp.2.2.2.coprime_iff_not_dvd)]
   tauto
 
 end layout17
@@ -80,22 +79,22 @@ open Packed in
 /-- The packed constants of `layout17` have the specified fields. -/
 theorem layout17_wf : layout17.WF := by
   have hb : 0 < 9 := by norm_num
-  have hones : Spec 9 85085 (repC 9 1 85085) fun _ => 1 :=
-    rep_eq_repC (b := 9) (m := 1) (by norm_num) ▸ spec_rep_one hb 85085
-  have hunits := spec_unitInd hb (R := 85085) layout17.primes (by decide)
+  have hones : Spec 9 17017 (repC 9 1 17017) fun _ => 1 :=
+    rep_eq_repC (b := 9) (m := 1) (by norm_num) ▸ spec_rep_one hb 17017
+  have hunits := spec_unitInd hb (R := 17017) layout17.primes (by decide)
   have hind : ∀ t, (if ∀ p ∈ layout17.primes, ¬p ∣ t then 1 else 0) =
-      if Nat.Coprime t 85085 then 1 else 0 := fun t => by
+      if Nat.Coprime t 17017 then 1 else 0 := fun t => by
     rw [if_congr (layout17.coprime_iff t).symm rfl rfl]
   have hmul : ∀ (c : Prop) [Decidable c] (k : ℕ), (if c then 1 else 0) * k = if c then k else 0 :=
     fun c _ k => by split_ifs <;> simp
-  have hunits' : Spec 9 85085 (unitInd 9 85085 layout17.primes)
-      fun t => if Nat.Coprime t 85085 then 1 else 0 :=
+  have hunits' : Spec 9 17017 (unitInd 9 17017 layout17.primes)
+      fun t => if Nat.Coprime t 17017 then 1 else 0 :=
     ⟨hunits.lt, fun t ht => (hunits.field_eq t ht).trans (hind t)⟩
-  have spec_mul : ∀ {x : ℕ} {f : ℕ → ℕ} (k : ℕ), Spec 9 85085 x f → (∀ t, f t ≤ 1) →
-      k < 2 ^ 9 → Spec 9 85085 (x * k) fun t => f t * k := fun k hx hf hk =>
+  have spec_mul : ∀ {x : ℕ} {f : ℕ → ℕ} (k : ℕ), Spec 9 17017 x f → (∀ t, f t ≤ 1) →
+      k < 2 ^ 9 → Spec 9 17017 (x * k) fun t => f t * k := fun k hx hf hk =>
     hx.mul_const hb fun t _ =>
       lt_of_le_of_lt ((Nat.mul_le_mul_right k (hf t)).trans (by rw [one_mul])) hk
-  have hf1 : ∀ t, (if Nat.Coprime t 85085 then 1 else 0) ≤ 1 := fun t => by split_ifs <;> simp
+  have hf1 : ∀ t, (if Nat.Coprime t 17017 then 1 else 0) ≤ 1 := fun t => by split_ifs <;> simp
   refine ⟨by decide +kernel, by decide +kernel, ?_, ?_, ?_, ?_, ?_⟩ <;>
     rw [layout17.b_eq, layout17.R_eq]
   · rw [layout17.ones_eq]; exact hones
@@ -131,21 +130,18 @@ theorem exists_potential : ∃ φ : ℕ → ℕ, (∀ r, φ r ≤ 255) ∧ (∀ 
   have hb : layout17.b = 9 := by decide +kernel
   have hoff : phi17.offset = 0 := by decide +kernel
   refine ⟨phi17.value layout17, fun r => ?_, fun r => ?_, fun d t μ hp => ?_⟩
-  · have hfield : field layout17.b (phi17.comp (r % 3)) (r % layout17.R) ≤ phi17.bound := by
-      simp only [State.comp]
-      split_ifs
-      · exact hg₀.w₁.2 _
-      · exact hg₀.w₂.2 _
-      · simp
+  · have := ((hg₀.comp (r % 3)).get (r % 5)).2 (r % layout17.R)
     rw [hb] at hbound
     simp only [State.value, hoff]
     omega
-  · simp only [State.value, mod_three_of_dvd layout17_R, mod_R_of_dvd layout17_R]
+  · simp only [State.value, mod_three_of_dvd layout17_R, mod_five_of_dvd layout17_R,
+      mod_R_of_dvd layout17_R]
   · have hpath := hp.pathUpTo
     have h₁ : phi17.value layout17 (t 0) + ∑ i ∈ Finset.Ico 1 M, μ i ≤
         phi17.final.value layout17 (t (M - 1)) := hsim d t μ hpath
+    have hc := hpath.coprime (M - 1) le_rfl
     have h₂ := layout17_wf.value_le_of_finalB phi17_final hg₀ hg (t (M - 1))
-      (mod_three_ne_zero (hpath.coprime (M - 1) le_rfl))
+      (mod_three_ne_zero hc) (mod_five_ne_zero hc)
     omega
 
 end Erdos455
