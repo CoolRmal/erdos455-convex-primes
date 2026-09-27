@@ -33,20 +33,25 @@ def field (b x t : ℕ) : ℕ := x / 2 ^ (b * t) % 2 ^ b
 
 variable {b x y t : ℕ}
 
+/-- A field is below `2 ^ b`. -/
 theorem field_lt (b x t : ℕ) : field b x t < 2 ^ b :=
   Nat.mod_lt _ (Nat.two_pow_pos b)
 
+/-- All fields of `0` vanish. -/
 @[simp]
 theorem field_zero_left (b t : ℕ) : field b 0 t = 0 := by
   simp [field]
 
+/-- Field `0` is the residue modulo `2 ^ b`. -/
 theorem field_zero (b x : ℕ) : field b x 0 = x % 2 ^ b := by
   simp [field]
 
+/-- Field `t + 1` of `x` is field `t` of `x / 2 ^ b`. -/
 theorem field_succ (b x t : ℕ) : field b x (t + 1) = field b (x / 2 ^ b) t := by
   simp only [field, Nat.div_div_eq_div_mul, ← pow_add]
   ring_nf
 
+/-- The bits of a field are bits of the packed number. -/
 theorem testBit_field (b x t i : ℕ) :
     (field b x t).testBit i = (decide (i < b) && x.testBit (b * t + i)) := by
   simp only [field, Nat.testBit_mod_two_pow, Nat.testBit_div_two_pow]
@@ -67,10 +72,12 @@ theorem eq_of_field_eq (hb : 0 < b) (h : ∀ t, field b x t = field b y t) : x =
     rw [testBit_field, decide_eq_true (Nat.mod_lt i hb), Bool.true_and, Nat.div_add_mod]
   rw [key x, key y, h]
 
+/-- A right shift by `k` whole fields moves field `t + k` to field `t`. -/
 theorem field_shiftRight (b x k t : ℕ) : field b (x >>> (b * k)) t = field b x (t + k) := by
   simp only [field, Nat.shiftRight_eq_div_pow, Nat.div_div_eq_div_mul, ← pow_add]
   ring_nf
 
+/-- A left shift by `k` whole fields moves field `t` to field `t + k`, filling with zeros. -/
 theorem field_shiftLeft (b x k t : ℕ) :
     field b (x <<< (b * k)) t = if t < k then 0 else field b x (t - k) := by
   split_ifs with h
@@ -93,16 +100,19 @@ theorem field_shiftLeft (b x k t : ℕ) :
       simp [hi, h1, h2]
     · simp [hi]
 
+/-- Bitwise or acts fieldwise. -/
 theorem field_or (b x y t : ℕ) : field b (x ||| y) t = field b x t ||| field b y t := by
   refine Nat.eq_of_testBit_eq fun i => ?_
   simp only [testBit_field, Nat.testBit_or]
   cases decide (i < b) <;> simp
 
+/-- Bitwise and acts fieldwise. -/
 theorem field_and (b x y t : ℕ) : field b (x &&& y) t = field b x t &&& field b y t := by
   refine Nat.eq_of_testBit_eq fun i => ?_
   simp only [testBit_field, Nat.testBit_and]
   cases decide (i < b) <;> simp
 
+/-- Bitwise xor acts fieldwise. -/
 theorem field_xor (b x y t : ℕ) : field b (x ^^^ y) t = field b x t ^^^ field b y t := by
   refine Nat.eq_of_testBit_eq fun i => ?_
   simp only [testBit_field, Nat.testBit_xor]

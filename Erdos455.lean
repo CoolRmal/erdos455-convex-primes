@@ -9,7 +9,7 @@ import Erdos455.DP.Sound
 import Erdos455.DP.Runs
 import Erdos455.DP.Invariant
 import Erdos455.DP.Run
-import Erdos455.Packed.Check
+import Erdos455.Packed.Rep
 import Erdos455.DP.Gen
 import Erdos455.DP.Certificate
 import Erdos455.Progression

@@ -64,6 +64,10 @@ Proposition 11 amounts to one period of max-plus value iteration: `255254` steps
   `ℕ` literals with GMP, so one operation acts on 85085 residues. A step of the value iteration
   is a few dozen such operations (rotations, additions, masks and a fieldwise maximum that uses
   the top bit of every field as a guard bit) on 96 KB numbers (`DP/Step.lean`).
+* **Constants.** The packed constants (all ones, the guard bits, the indicator of the units
+  modulo `85085`) are closed forms such as `(2^(9·85085) - 1) / (2^9 - 1)`, whose fields are
+  known by a general lemma (`Packed/Rep.lean`); the kernel only checks five equalities of
+  numbers.
 * **Soundness** is proved once and for all, for every input: a successful step dominates the
   max-plus operator on all runs of units (`DP/Sound.lean`, `DP/Invariant.lean`, `DP/Run.lean`).
   Every step checks at run time the bounds it needs (no field reaches its guard bit, no field
@@ -86,7 +90,8 @@ recomputes it and reproduces this hash.
 * `Erdos455/` — the development; `Erdos455/DP/` is the dynamic program and its certificate,
   `Erdos455/Packed/` the arithmetic on packed vectors.
 * `scripts/` — reference implementations used to design and cross-check the certificate
-  (`gen_phi.c`, `packed_ref.py`) and to time the external checkers; not part of the proof.
+  (`gen_phi.c`, `packed_ref.py`) and to time the external checkers; not part of the proof (see
+  `scripts/README.md`).
 
 ## Building and checking
 

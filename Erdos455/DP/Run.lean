@@ -24,6 +24,7 @@ namespace Erdos455.DP
 
 open Packed
 
+/-- An optional value built by `bif` is `some y` iff the condition holds and the value is `y`. -/
 theorem cond_eq_some {α : Type*} {c : Bool} {x y : α} :
     (bif c then some x else none) = some y ↔ c = true ∧ x = y := by
   cases c <;> simp
@@ -44,6 +45,8 @@ def finalB (L : Layout) (st₀ st : State) (Λ : ℕ) : Bool :=
     ple L.highs st.w₁ (st₀.w₁ + L.ones * (st₀.offset + Λ - st.offset)) &&
     ple L.highs st.w₂ (st₀.w₂ + L.ones * (st₀.offset + Λ - st.offset))
 
+/-- A successful normalisation: all its checks pass, and it subtracts `s` from the fields at the
+units. -/
 theorem normalize_eq_some {s B : ℕ} {st st' : State} :
     L.normalize s B st = some st' ↔
       (s < 2 ^ (L.b - 1) ∧ B < 2 ^ (L.b - 1) ∧ ple L.uhighs (L.uones * s) st.w₁ = true ∧
@@ -58,6 +61,7 @@ namespace WF
 variable (hL : L.WF)
 include hL
 
+/-- The guard bits of `highs`, in the form used by `Spec.le_of_ple`. -/
 theorem highs_spec : Spec L.b L.R L.highs fun t => if (fun _ => True) t then 2 ^ (L.b - 1) else 0 :=
   by simpa using hL.highs
 

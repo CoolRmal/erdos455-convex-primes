@@ -58,6 +58,8 @@ theorem dvd_iff_of_mod_eq {p d i : ℕ} (hp : p.Prime) (hp2 : p ≠ 2) (hpM : p 
   exact (Nat.Coprime.dvd_mul_left
     ((Nat.coprime_primes hp Nat.prime_two).mpr hp2)).trans Iff.rfl
 
+/-- `runBound i` is `p - 2` for the least prime `p ∈ {3, 5, 7, 11, 13}` not dividing `i`, and `15`
+if there is none. -/
 theorem runBound_eq (i : ℕ) : DP.runBound i =
     if ¬3 ∣ i then 1 else if ¬5 ∣ i then 3 else if ¬7 ∣ i then 5 else if ¬11 ∣ i then 9
     else if ¬13 ∣ i then 11 else 15 := by

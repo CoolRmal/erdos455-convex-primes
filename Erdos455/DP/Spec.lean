@@ -34,6 +34,7 @@ def M : ℕ := 255255
 /-- The growth rate `Λ` of the dynamic program over one period of gap values. -/
 def growth : ℕ := 295318
 
+/-- `M` is the product of the odd primes up to `17`. -/
 theorem M_eq : M = 3 * 5 * 7 * 11 * 13 * 17 := rfl
 
 /-- `IsRun d r m`: the numbers `r + j d` with `1 ≤ j ≤ m` are all coprime to `M`. -/

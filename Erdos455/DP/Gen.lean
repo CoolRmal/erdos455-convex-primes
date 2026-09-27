@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Yongxi Lin
 -/
 import Erdos455.DP.Run
-import Erdos455.Packed.Check
+import Erdos455.Packed.Rep
 
 /-!
 # Generating the certificate
@@ -34,13 +34,16 @@ open Lean Meta Elab Command
 
 /-! ### Lemmas with explicit arguments, for the proof terms built by the commands -/
 
+/-- `State.Good` from the kernel-checkable test `goodB` (explicit arguments). -/
 theorem good (L : Layout) (hL : L.WF) (st : State) (h : L.goodB st = true) : st.Good L :=
   hL.good_of_goodB h
 
+/-- The value iteration after no steps, from a state satisfying the invariant. -/
 theorem sim_zero (L : Layout) (st : State) (hg : st.Good L) :
     st.Good L ∧ Sim L (st.value L) 0 st :=
   ⟨hg, fun _ _ _ _ => by simp⟩
 
+/-- A successful chunk of the value iteration (explicit arguments, for `dp_certificate%`). -/
 theorem chunk (L : Layout) (hL : L.WF) (hR : 3 * L.R = M) (φ : ℕ → ℕ) (K n lo : ℕ)
     (sched : List (ℕ × ℕ)) (st st' : State) (h : L.run K n lo sched st = some ([], st'))
     (hlt : lo + n < M) (hs : st.Good L ∧ Sim L φ lo st) : st'.Good L ∧ Sim L φ (lo + n) st' :=
@@ -118,9 +121,21 @@ def natE (n : ℕ) : Expr := mkRawNatLit n
 /-- The expression of a small natural number (an index), as a numeral `OfNat.ofNat n`. -/
 def numE (n : ℕ) : Expr := mkNatLit n
 
-/-- The expression of a state. -/
+/-- The width of the pieces of `piecesE`. -/
+def pieceBits : ℕ := 8192
+
+/-- The expression of a large natural number as `p₀ ||| ((p₁ ||| (… <<< w)) <<< w)` with
+literals `pᵢ` of `w = pieceBits` bits. Exported declarations print literals in decimal and
+checkers read them back, both in time quadratic in the number of digits; pieces of `8192` bits
+keep this cheap, while the kernel reassembles the number with a few GMP operations. -/
+partial def piecesE (n : ℕ) : Expr :=
+  if n < 2 ^ pieceBits then natE n
+  else mkApp2 (mkConst ``Nat.lor) (natE (n % 2 ^ pieceBits))
+    (mkApp2 (mkConst ``Nat.shiftLeft) (piecesE (n >>> pieceBits)) (natE pieceBits))
+
+/-- The expression of a state, with its components split into pieces (see `piecesE`). -/
 def stateE (st : State) : Expr :=
-  mkApp4 (mkConst ``State.mk) (natE st.w₁) (natE st.w₂) (natE st.offset) (natE st.bound)
+  mkApp4 (mkConst ``State.mk) (piecesE st.w₁) (piecesE st.w₂) (natE st.offset) (natE st.bound)
 
 /-- The expression of a schedule. -/
 def schedE (sched : Array (ℕ × ℕ)) : Expr :=

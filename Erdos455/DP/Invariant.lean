@@ -38,6 +38,7 @@ namespace PathUpTo
 
 variable {n : ℕ} {d t μ : ℕ → ℕ}
 
+/-- A path of length `n + 1` restricts to a path of length `n`. -/
 theorem of_succ (h : PathUpTo (n + 1) d t μ) : PathUpTo n d t μ :=
   ⟨h.coprime_zero, fun i hi hin => h.gap_mod i hi (by omega),
     fun i hi hin => h.isRun i hi (by omega), fun i hi hin => h.step i hi (by omega)⟩
@@ -54,6 +55,7 @@ theorem coprime (h : PathUpTo n d t μ) : ∀ i ≤ n, Nat.Coprime (t i) M
 
 end PathUpTo
 
+/-- A path over a period is a path of length `M - 1`. -/
 theorem PeriodPath.pathUpTo {d t μ : ℕ → ℕ} (h : PeriodPath d t μ) : PathUpTo (M - 1) d t μ :=
   ⟨h.coprime_zero, fun i hi hin => h.gap_mod i hi (by simp only [M] at hin ⊢; omega),
     fun i hi hin => h.isRun i hi (by simp only [M] at hin ⊢; omega),
@@ -84,6 +86,7 @@ def Sim (L : Layout) (φ : ℕ → ℕ) (n : ℕ) (st : State) : Prop :=
 
 /-! ### Modular arithmetic -/
 
+/-- Rotating back by `d % R` undoes the addition of `d` modulo `R`. -/
 theorem mod_add_sub_mod {R : ℕ} (hR : 0 < R) (r d : ℕ) :
     ((r + d) % R + R - d % R) % R = r % R := by
   have h1 := Nat.mod_lt r hR
@@ -99,12 +102,15 @@ section
 
 variable {L : Layout}
 
+/-- The number of fields is positive. -/
 theorem three_R_pos (hR : 3 * L.R = M) : 0 < L.R := by
   simp only [M] at hR; omega
 
+/-- Residues modulo `M = 3 R` determine the residues modulo `3`. -/
 theorem mod_three_of_dvd {a : ℕ} (hR : 3 * L.R = M) : a % M % 3 = a % 3 :=
   Nat.mod_mod_of_dvd a ⟨L.R, hR.symm⟩
 
+/-- Residues modulo `M = 3 R` determine the residues modulo `R`. -/
 theorem mod_R_of_dvd {a : ℕ} (hR : 3 * L.R = M) : a % M % L.R = a % L.R :=
   Nat.mod_mod_of_dvd a ⟨3, by rw [← hR, mul_comm]⟩
 
@@ -119,10 +125,12 @@ theorem coprime_mod_R {r : ℕ} (hR : 3 * L.R = M) (hr : Nat.Coprime r M) :
   rw [ZMod.coprime_mod_iff_coprime]
   exact Nat.Coprime.coprime_dvd_right ⟨3, by rw [← hR, mul_comm]⟩ hr
 
+/-- A gap `d ≡ 2 i [MOD M]` satisfies `d ≡ 2 i [MOD 3]`. -/
 theorem gap_mod_three {i d : ℕ} (hR : 3 * L.R = M) (hd : d % M = 2 * i % M) :
     d % 3 = 2 * i % 3 := by
   rw [← mod_three_of_dvd (L := L) hR, hd, mod_three_of_dvd (L := L) hR]
 
+/-- A gap `d ≡ 2 i [MOD M]` satisfies `d ≡ 2 i [MOD R]`. -/
 theorem gap_mod_R {i d : ℕ} (hR : 3 * L.R = M) (hd : d % M = 2 * i % M) :
     d % L.R = 2 * i % L.R := by
   rw [← mod_R_of_dvd hR, hd, mod_R_of_dvd hR]
@@ -175,6 +183,8 @@ namespace Layout
 
 variable {L : Layout}
 
+/-- A successful step: the bound stays below the guard bit, and the components are updated by
+`stepComps`. -/
 theorem step_eq_some {i : ℕ} {st st' : State} :
     L.step i st = some st' ↔ st.bound + runBound i < 2 ^ (L.b - 1) ∧
       st' = ⟨(L.stepComps i st.w₁ st.w₂).1, (L.stepComps i st.w₁ st.w₂).2, st.offset,
@@ -182,14 +192,17 @@ theorem step_eq_some {i : ℕ} {st st' : State} :
   simp only [Layout.step]
   cases h : decide (st.bound + runBound i < 2 ^ (L.b - 1)) <;> simp_all [eq_comm]
 
+/-- For `i ≡ 1 [MOD 3]`, the runs move the class `2` to the class `1`. -/
 theorem stepComps_of_mod_one {i w₁ w₂ : ℕ} (h : i % 3 = 1) :
     L.stepComps i w₁ w₂ = (L.pmax w₁ (L.shift (2 * i % L.R) w₂), w₂) := by
   simp [Layout.stepComps, h]
 
+/-- For `i ≡ 2 [MOD 3]`, the runs move the class `1` to the class `2`. -/
 theorem stepComps_of_mod_two {i w₁ w₂ : ℕ} (h : i % 3 = 2) :
     L.stepComps i w₁ w₂ = (w₁, L.pmax w₂ (L.shift (2 * i % L.R) w₁)) := by
   simp [Layout.stepComps, h]
 
+/-- For `3 ∣ i`, the runs stay in their class modulo `3`. -/
 theorem stepComps_of_mod_zero {i w₁ w₂ : ℕ} (h : i % 3 = 0) :
     L.stepComps i w₁ w₂ = (L.chainMax (2 * i % L.R) (runBound i) w₁ w₁,
       L.chainMax (2 * i % L.R) (runBound i) w₂ w₂) := by
@@ -197,11 +210,14 @@ theorem stepComps_of_mod_zero {i w₁ w₂ : ℕ} (h : i % 3 = 0) :
 
 end Layout
 
+/-- For `3 ∤ i`, runs have length at most one. -/
 theorem runBound_of_mod_ne_zero {i : ℕ} (h : i % 3 ≠ 0) : runBound i = 1 := by
   rw [runBound_eq, ite_eq_left (fun h3 => h (Nat.mod_eq_zero_of_dvd h3))]
 
+/-- The component of the class `1` is `w₁`. -/
 theorem State.comp_one (st : State) : st.comp 1 = st.w₁ := rfl
 
+/-- The component of the class `2` is `w₂`. -/
 theorem State.comp_two (st : State) : st.comp 2 = st.w₂ := by simp [State.comp]
 
 namespace Layout.WF

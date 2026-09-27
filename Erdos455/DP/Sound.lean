@@ -48,12 +48,15 @@ structure WF (L : Layout) : Prop where
 def Bounded (L : Layout) (x B : ℕ) : Prop :=
   x < 2 ^ (L.b * L.R) ∧ ∀ t, field L.b x t ≤ B
 
+/-- A bound on the fields can be weakened. -/
 theorem Bounded.mono {x B B' : ℕ} (h : L.Bounded x B) (hB : B ≤ B') : L.Bounded x B' :=
   ⟨h.1, fun t => (h.2 t).trans hB⟩
 
+/-- A bounded packed vector is specified by its own fields. -/
 theorem Bounded.spec {x B : ℕ} (h : L.Bounded x B) : Spec L.b L.R x (field L.b x) :=
   ⟨h.1, fun _ _ => rfl⟩
 
+/-- The fields of a bounded packed vector vanish from `R` on. -/
 theorem Bounded.field_eq_zero {x B t : ℕ} (h : L.Bounded x B) (ht : L.R ≤ t) :
     field L.b x t = 0 :=
   field_eq_zero_of_lt_pow h.1 ht
@@ -63,8 +66,10 @@ namespace WF
 variable (hL : L.WF)
 include hL
 
+/-- The field width is positive. -/
 theorem b_pos : 0 < L.b := by have := hL.two_le_b; omega
 
+/-- The guard bit is below the field size: `2 ^ (b - 1) < 2 ^ b`. -/
 theorem pow_pred_lt : 2 ^ (L.b - 1) < 2 ^ L.b :=
   Nat.pow_lt_pow_right (by norm_num) (by have := hL.two_le_b; omega)
 

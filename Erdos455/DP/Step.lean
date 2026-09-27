@@ -160,9 +160,11 @@ def run (K : ℕ) (n : ℕ) : ℕ → List (ℕ × ℕ) → State → Option (Li
   Nat.rec (motive := fun _ => ℕ → List (ℕ × ℕ) → State → Option (List (ℕ × ℕ) × State))
     (fun _ sched st => some (sched, st)) (fun _ ih lo => L.runStep K lo (ih (lo + 1))) n
 
+/-- A run of no steps returns the state and the schedule unchanged. -/
 theorem run_zero (K lo : ℕ) (sched : List (ℕ × ℕ)) (st : State) :
     L.run K 0 lo sched st = some (sched, st) := rfl
 
+/-- A run of `n + 1` steps is a step followed by a run of `n` steps. -/
 theorem run_succ (K n lo : ℕ) :
     L.run K (n + 1) lo = L.runStep K lo (L.run K n (lo + 1)) := rfl
 

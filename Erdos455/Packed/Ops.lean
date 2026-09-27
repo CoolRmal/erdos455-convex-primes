@@ -30,6 +30,7 @@ structure Spec (b n x : ℕ) (f : ℕ → ℕ) : Prop where
   lt : x < 2 ^ (b * n)
   field_eq : ∀ t < n, field b x t = f t
 
+/-- The fields of a packed vector beyond its length vanish. -/
 theorem Spec.field_of_le {f : ℕ → ℕ} (h : Spec b n x f) (ht : n ≤ t) : field b x t = 0 :=
   field_eq_zero_of_lt_pow h.lt ht
 
@@ -43,6 +44,8 @@ theorem lt_pow_of_field_eq_zero (hb : 0 < b) (h : ∀ t, n ≤ t → field b x t
     Nat.zero_testBit] at this
   exact this
 
+/-- A packed number whose fields are `f t` below `n` and `0` from `n` on satisfies
+`Spec b n x f`. -/
 theorem spec_of_field (hb : 0 < b) {f : ℕ → ℕ} (h : ∀ t, field b x t = if t < n then f t else 0) :
     Spec b n x f :=
   ⟨lt_pow_of_field_eq_zero hb fun t ht => by simp [h, Nat.not_lt.mpr ht],
@@ -82,6 +85,7 @@ section pmax
 
 variable {a h : ℕ}
 
+/-- Setting the guard bit `2 ^ k` of a number below `2 ^ k` adds `2 ^ k`. -/
 theorem field_or_high {k : ℕ} (hv : x < 2 ^ k) : x ||| 2 ^ k = x + 2 ^ k :=
   Nat.or_two_pow_eq_add_of_lt hv
 

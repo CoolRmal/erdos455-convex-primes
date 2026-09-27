@@ -40,40 +40,75 @@ namespace layout17
 
 open Packed
 
-/-! The packed constants of `layout17` have the specified fields (checked by the kernel). -/
+/-! The packed constants of `layout17` are closed forms (checked by the kernel with a few GMP
+operations), whose fields are known by `Erdos455.Packed.spec_unitInd`. -/
 
-theorem ones_spec : checkSpec layout17.b layout17.R (fun _ => 1) layout17.ones = true := by
-  decide +kernel
+/-- The primes dividing `85085`. -/
+def primes : List ℕ := [5, 7, 11, 13, 17]
 
-theorem highs_spec :
-    checkSpec layout17.b layout17.R (fun _ => 2 ^ (layout17.b - 1)) layout17.highs = true := by
-  decide +kernel
+theorem b_eq : layout17.b = 9 := by decide +kernel
 
-theorem umask_spec : checkSpec layout17.b layout17.R
-    (fun t => if Nat.Coprime t layout17.R then 2 ^ layout17.b - 1 else 0) layout17.umask =
-      true := by
-  decide +kernel
+theorem R_eq : layout17.R = 85085 := by decide +kernel
 
-theorem uones_spec : checkSpec layout17.b layout17.R
-    (fun t => if Nat.Coprime t layout17.R then 1 else 0) layout17.uones = true := by
-  decide +kernel
+theorem ones_eq : layout17.ones = repC 9 1 85085 := by decide +kernel
 
-theorem uhighs_spec : checkSpec layout17.b layout17.R
-    (fun t => if Nat.Coprime t layout17.R then 2 ^ (layout17.b - 1) else 0) layout17.uhighs =
-      true := by
-  decide +kernel
+theorem highs_eq : layout17.highs = repC 9 1 85085 * 2 ^ 8 := by decide +kernel
+
+theorem uones_eq : layout17.uones = unitInd 9 85085 primes := by decide +kernel
+
+theorem umask_eq : layout17.umask = unitInd 9 85085 primes * (2 ^ 9 - 1) := by decide +kernel
+
+theorem uhighs_eq : layout17.uhighs = unitInd 9 85085 primes * 2 ^ 8 := by decide +kernel
+
+/-- The units modulo `85085` are the numbers divisible by none of its prime factors. -/
+theorem coprime_iff (t : ℕ) : Nat.Coprime t 85085 ↔ ∀ p ∈ primes, ¬p ∣ t := by
+  have hp : ∀ p ∈ primes, p.Prime := by decide
+  rw [show (85085 : ℕ) = 5 * 7 * 11 * 13 * 17 by norm_num]
+  simp only [Nat.coprime_mul_iff_right, primes, List.mem_cons, List.not_mem_nil, or_false,
+    forall_eq_or_imp, forall_eq]
+  simp only [primes, List.mem_cons, List.not_mem_nil, or_false, forall_eq_or_imp,
+    forall_eq] at hp
+  rw [Nat.coprime_comm.trans (hp.1.coprime_iff_not_dvd), Nat.coprime_comm.trans
+    (hp.2.1.coprime_iff_not_dvd), Nat.coprime_comm.trans (hp.2.2.1.coprime_iff_not_dvd),
+    Nat.coprime_comm.trans (hp.2.2.2.1.coprime_iff_not_dvd),
+    Nat.coprime_comm.trans (hp.2.2.2.2.coprime_iff_not_dvd)]
+  tauto
 
 end layout17
 
+open Packed in
 /-- The packed constants of `layout17` have the specified fields. -/
-theorem layout17_wf : layout17.WF where
-  two_le_b := by decide +kernel
-  R_pos := by decide +kernel
-  ones := Packed.spec_of_checkSpec layout17.ones_spec
-  highs := Packed.spec_of_checkSpec layout17.highs_spec
-  umask := Packed.spec_of_checkSpec layout17.umask_spec
-  uones := Packed.spec_of_checkSpec layout17.uones_spec
-  uhighs := Packed.spec_of_checkSpec layout17.uhighs_spec
+theorem layout17_wf : layout17.WF := by
+  have hb : 0 < 9 := by norm_num
+  have hones : Spec 9 85085 (repC 9 1 85085) fun _ => 1 :=
+    rep_eq_repC (b := 9) (m := 1) (by norm_num) ▸ spec_rep_one hb 85085
+  have hunits := spec_unitInd hb (R := 85085) layout17.primes (by decide)
+  have hind : ∀ t, (if ∀ p ∈ layout17.primes, ¬p ∣ t then 1 else 0) =
+      if Nat.Coprime t 85085 then 1 else 0 := fun t => by
+    rw [if_congr (layout17.coprime_iff t).symm rfl rfl]
+  have hmul : ∀ (c : Prop) [Decidable c] (k : ℕ), (if c then 1 else 0) * k = if c then k else 0 :=
+    fun c _ k => by split_ifs <;> simp
+  have hunits' : Spec 9 85085 (unitInd 9 85085 layout17.primes)
+      fun t => if Nat.Coprime t 85085 then 1 else 0 :=
+    ⟨hunits.lt, fun t ht => (hunits.field_eq t ht).trans (hind t)⟩
+  have spec_mul : ∀ {x : ℕ} {f : ℕ → ℕ} (k : ℕ), Spec 9 85085 x f → (∀ t, f t ≤ 1) →
+      k < 2 ^ 9 → Spec 9 85085 (x * k) fun t => f t * k := fun k hx hf hk =>
+    hx.mul_const hb fun t _ =>
+      lt_of_le_of_lt ((Nat.mul_le_mul_right k (hf t)).trans (by rw [one_mul])) hk
+  have hf1 : ∀ t, (if Nat.Coprime t 85085 then 1 else 0) ≤ 1 := fun t => by split_ifs <;> simp
+  refine ⟨by decide +kernel, by decide +kernel, ?_, ?_, ?_, ?_, ?_⟩ <;>
+    rw [layout17.b_eq, layout17.R_eq]
+  · rw [layout17.ones_eq]; exact hones
+  · rw [layout17.highs_eq]
+    exact ⟨(spec_mul _ hones (fun _ => le_rfl) (by norm_num)).lt, fun t ht => by
+      rw [(spec_mul _ hones (fun _ => le_rfl) (by norm_num)).field_eq t ht]; norm_num⟩
+  · rw [layout17.umask_eq]
+    exact ⟨(spec_mul _ hunits' hf1 (by norm_num)).lt, fun t ht => by
+      rw [(spec_mul _ hunits' hf1 (by norm_num)).field_eq t ht, hmul]⟩
+  · rw [layout17.uones_eq]; exact hunits'
+  · rw [layout17.uhighs_eq]
+    exact ⟨(spec_mul _ hunits' hf1 (by norm_num)).lt, fun t ht => by
+      rw [(spec_mul _ hunits' hf1 (by norm_num)).field_eq t ht, hmul]⟩
 
 -- The potential `phi17`, the value iteration from it in chunks, and the final state.
 dp_certificate% layout17 32 512 phi17 layout17_wf layout17_R

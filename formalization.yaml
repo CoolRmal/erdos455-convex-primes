@@ -88,7 +88,7 @@ automation:
     - claude-opus-5-5
     framework: Claude Code
     tool_setup: |-
-      One session, directed by the maintainer, designed and wrote the kernel-checkable certificate (the packed value iteration, its soundness proof and the elaboration-time generator) after benchmarking GMP-backed kernel reduction in the Lean kernel, nanoda and con-ron; it regenerated the source's potential with a C program (scripts/gen_phi.c) and cross-checked the packed algorithm with a Python reference (scripts/packed_ref.py), which reproduces the growth rates of the source for the moduli 15, 105, 1155 and 15015. Two background agents in separate git worktrees formalized the constant G (Lemmas 14 and 15) and the analytic part (Lemmas 3-6 and 13, Corollary 12, Theorem 16 and Section 7) against fixed interface statements.
+      One session, directed by the maintainer, designed and wrote the kernel-checkable certificate (the packed value iteration, its soundness proof and the elaboration-time generator) after benchmarking GMP-backed kernel reduction in the Lean kernel, nanoda and con-ron; it regenerated the source's potential with a C program (scripts/gen_phi.c) and cross-checked the packed algorithm with a Python reference (scripts/packed_ref.py), which reproduces the growth rates of the source for the moduli 15, 105, 1155, 15015 and 255255 (the last in a five-hour run). Two background agents in separate git worktrees formalized the constant G (Lemmas 14 and 15) and the analytic part (Lemmas 3-6 and 13, Corollary 12, Theorem 16 and Section 7) against fixed interface statements.
     cost:
       wall_time: about one day (2026-09-26 to 2026-09-27)
       spend_usd: subscription-based
