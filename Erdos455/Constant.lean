@@ -293,17 +293,16 @@ theorem sum_range_four_summandG :
 /-- **Lemma 15** (upper bound). -/
 theorem G_lt_bound : G < 17.2245 := by
   have hs : Summable summandG := summable_G
+  have h4 : largePrimeProd 4 = 392863 := by
+    simp [largePrimeProd, prod_range_succ, largePrime_zero, largePrime_one, largePrime_two,
+      largePrime_three]
   have htail : ∑' i, summandG (i + 4) ≤ ∑' i, (largePrimeProd 4 : ℝ)⁻¹ * 19⁻¹ ^ i := by
     refine ((summable_nat_add_iff 4).mpr hs).tsum_le_tsum (fun i => ?_)
       ((summable_geometric_of_lt_one (by norm_num) (by norm_num)).mul_left _)
     rw [add_comm]
     exact summandG_add_le 4 i
-  rw [tsum_mul_left, tsum_geometric_of_lt_one (by norm_num) (by norm_num)] at htail
-  have h4 : largePrimeProd 4 = 392863 := by
-    simp [largePrimeProd, prod_range_succ, largePrime_zero, largePrime_one, largePrime_two,
-      largePrime_three]
+  rw [tsum_mul_left, tsum_geometric_of_lt_one (by norm_num) (by norm_num), h4] at htail
   rw [G_eq, ← hs.sum_add_tsum_nat_add 4, sum_range_four_summandG]
-  rw [h4] at htail
   norm_num at htail ⊢
   linarith
 
