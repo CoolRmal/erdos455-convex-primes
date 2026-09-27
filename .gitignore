@@ -1,0 +1,7 @@
+/.lake
+*.olean
+/build
+.DS_Store
+/scratch
+__pycache__/
+*.pdf

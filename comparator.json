@@ -1,0 +1,14 @@
+{
+  "challenge_module": "Challenge",
+  "solution_module": "Solution",
+  "theorem_names": [
+    "Erdos455.ofReal_le_liminf",
+    "Erdos455.liminf_gt",
+    "Erdos455.eventually_lt",
+    "Erdos455.G_lt",
+    "Erdos455.erdos_455.variants.liminf"
+  ],
+  "definition_names": [],
+  "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"],
+  "enable_nanoda": true
+}

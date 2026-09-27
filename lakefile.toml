@@ -1,0 +1,24 @@
+name = "Erdos455"
+version = "0.1.0"
+defaultTargets = ["Erdos455", "Challenge", "Solution"]
+
+[leanOptions]
+pp.unicode.fun = true
+autoImplicit = false
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "3cb72cfd416d1b5ec4b930d67648ef036a5df24f"
+
+[[lean_lib]]
+name = "Erdos455"
+
+[[lean_lib]]
+name = "Challenge"
+
+[[lean_lib]]
+name = "Solution"

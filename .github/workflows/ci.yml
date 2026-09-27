@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure Lean and restore the Mathlib cache
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          use-github-cache: true
+          use-mathlib-cache: true
+
+      - name: Build the library, the challenge and the solution
+        run: lake build Erdos455 Challenge Solution
+
+      - name: Check source hygiene
+        shell: bash
+        run: |
+          # Challenge.lean is a statement file and contains deliberate `sorry`s.
+          if grep -REn --include='*.lean' --exclude-dir='.lake' \
+              '(^|[^[:alnum:]_])admit([^[:alnum:]_]|$)|native_decide|Lean\.ofReduceBool|implemented_by|^[[:space:]]*axiom([^[:alnum:]_]|$)|set_option[[:space:]]+debug' \
+              . | grep -vE '^(\./)?Challenge\.lean:'; then
+            echo "forbidden construct found"
+            exit 1
+          fi
+          while IFS= read -r file; do
+            lines=$(wc -l < "$file")
+            if (( lines > 1500 )); then
+              echo "$file has $lines lines"
+              exit 1
+            fi
+            if ! python3 -c 'import sys; sys.exit(any(len(l.rstrip("\n")) > 100 for l in open(sys.argv[1], encoding="utf-8")))' "$file"; then
+              echo "$file has a line longer than 100 characters"
+              exit 1
+            fi
+          done < <(find . -path './.lake' -prune -o -name '*.lean' -print)
+
+      - name: Report remaining `sorry`s in the proof development
+        run: |
+          if grep -rnw --include='*.lean' 'sorry' Erdos455 Solution.lean; then
+            echo "::warning::the proof development still contains sorry"
+          fi
+
+  comparator:
+    # A fresh runner: `lake comparator` builds and exports Challenge and Solution itself, inside
+    # its bubblewrap sandbox, without reusing any artifact compiled by the build job.
+    name: Comparator (Challenge vs Solution)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure Lean and restore the Mathlib cache
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          use-github-cache: false
+          use-mathlib-cache: true
+
+      - name: Install bubblewrap for the sandbox of lake comparator
+        # Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor, which `bwrap`
+        # needs for the sandbox; the runner is disposable.
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq bubblewrap >/dev/null
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Register the bundled kernels of the toolchain, as Palomar does
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix=$(lean --print-prefix)
+          python3 - comparator.json "$RUNNER_TEMP/comparator.json" "$prefix" <<'PY'
+          import json, pathlib, sys
+          source, destination, prefix = sys.argv[1:]
+          config = json.loads(pathlib.Path(source).read_text(encoding="utf-8"))
+          if "external_kernels" in config:
+              raise SystemExit("external_kernels is not a submitter field; Palomar rejects it")
+          config.pop("enable_nanoda", None)
+          config["external_kernels"] = {
+              "nanoda": [f"{prefix}/bin/nanoda_bin"],
+              "con-ron": [f"{prefix}/bin/con-ron"],
+          }
+          pathlib.Path(destination).write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+          PY
+          cat "$RUNNER_TEMP/comparator.json"
+
+      - name: Run lake comparator with the Lean kernel, nanoda and con-ron
+        run: lake comparator --config "$RUNNER_TEMP/comparator.json"
