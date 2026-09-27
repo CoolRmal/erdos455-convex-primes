@@ -112,7 +112,8 @@ theorem normalize {s B : ℕ} {st st' : State} (h : L.normalize s B st = some st
     have hsub : ∀ t, field L.b (w - L.uones * s) t =
         field L.b w t - field L.b (L.uones * s) t := fun t => field_sub hb hle'
     have hwb : L.Bounded (w - L.uones * s) st.bound :=
-      ⟨lt_of_le_of_lt (Nat.sub_le _ _) hw.1, fun t => by rw [hsub]; exact (Nat.sub_le _ _).trans (hw.2 t)⟩
+      ⟨lt_of_le_of_lt (Nat.sub_le _ _) hw.1,
+        fun t => by rw [hsub]; exact (Nat.sub_le _ _).trans (hw.2 t)⟩
     have hbo := hL.bounded_ones_mul (B := B) (by omega)
     have hup := hL.le_of_ple_highs hwb hbo.1 hg.bound_lt hB hhi
     refine ⟨⟨hwb.1, fun t => ?_⟩, fun t ht hc => ?_⟩

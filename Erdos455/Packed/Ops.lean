@@ -152,7 +152,8 @@ theorem Spec.pmax (hb : 0 < b) {fa fx : ℕ → ℕ} (hh : Spec b n h fun _ => 2
     rw [field_or]
     by_cases hs : s < n
     · rw [ite_eq_left hs, ha.field_eq s hs, hh.field_eq s hs, field_or_high (hfa s hs)]
-    · rw [ite_eq_right hs, ha.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs), Nat.zero_or]
+    · rw [ite_eq_right hs, ha.field_of_le (not_lt.mp hs), hh.field_of_le (not_lt.mp hs),
+        Nat.zero_or]
   -- the fields of `u`
   have hu : ∀ s, field b u s = if s < n then fa s + 2 ^ (b - 1) - fx s else 0 := by
     intro s

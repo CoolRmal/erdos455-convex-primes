@@ -1,0 +1,158 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mathlib-initiative/formalization.yaml/main/schema/formalization.schema.json
+version: v0.4
+project:
+  name: 'Convex sequences of primes: liminf q_n / n^2 > 0.864289 (towards Erdős Problem #455)'
+  description: |-
+    Let q_0 < q_1 < q_2 < ... be primes whose gaps are non-decreasing, q(n+2) - q(n+1) >= q(n+1) - q(n). Erdős asked whether necessarily q_n / n^2 -> infinity (Erdős Problem #455); Richter (1976) proved liminf q_n / n^2 > 0.352.
+    This development proves liminf q_n / n^2 >= M / (Lambda + G) > 0.864289, where M = 3·5·7·11·13·17 = 255255, Lambda = 295318 and G = 17.2244... is an explicit series over the primes >= 19 (with 17.2244 < G < 17.2245), together with the eventual form 0.864289 n^2 < q_n and, as a corollary, Richter's theorem in the exact form of erdos_455.variants.liminf in Formal Conjectures.
+    A run of equal gaps d is an arithmetic progression of primes, which has at most P(d) - 2 terms after its first outside a sparse exceptional set (P(d) the least prime not dividing d); eventually all terms are coprime to M, which turns the counting of gaps into a max-plus dynamic program on the 92160 units of Z/MZ, periodic in the gap value. An integer potential on the units certifies that the program gains at most Lambda per period. This certificate, a computation of about 5·10^10 elementary operations, is checked by the Lean kernel without native_decide: the values of the program are packed into natural numbers with 85085 fields of 9 bits, so that each step of the value iteration is a few dozen GMP operations, whose soundness is proved once and for all; the period is checked in 499 kernel-evaluated chunks.
+  authors:
+  - Yongxi Lin
+  license: Apache-2.0
+  responsible_maintainers:
+  - Yongxi Lin
+classification:
+  arxiv:
+  - math.NT
+  msc2020:
+  - 11N05
+  - 11B83
+  - 11Y16
+sources:
+- title: 'A lower bound liminf q_n / n^2 > 0.8642 for convex sequences of primes (Erdős Problem #455), with a plan for autoformalization'
+  type: original-proof
+  relationship: other
+  note: |-
+    An unpublished draft (26 September 2026), prepared with Claude and supplied by the maintainer; it is not included in this repository. It states Theorem 1 (liminf q_n / n^2 >= M / (Lambda + G) > 0.864289) and proves it from Lemmas 2-15, Corollary 12, Theorem 16 and the computer-checked Proposition 11, whose certificate phi (SHA-256 9ae840ca13532737580037705f8eae55a66c9b11aa00f9be74b3828e35c0dd07 in the format of the draft's checker) is reproduced by scripts/gen_phi.c. The draft's Part II is a plan for this formalization.
+- title: Über die Monotonie von Differenzenfolgen
+  authors:
+  - B. Richter
+  id: Acta Arith. 30 (1976), 225-227
+  type: paper
+  relationship: background
+  note: Proves liminf q_n / n^2 >= 0.3521; the device of runs of equal gaps as arithmetic progressions of primes goes back to this paper. Its bound is recovered here as a corollary.
+  license: unknown
+  author_endorsement: not-contacted
+- title: Old and new problems and results in combinatorial number theory
+  authors:
+  - P. Erdős
+  - R. L. Graham
+  id: Monogr. Enseign. Math. 28 (1980), p. 91
+  type: book
+  relationship: background
+  note: The source of the problem.
+  license: unknown
+  author_endorsement: not-contacted
+- title: 'Erdős Problem #455'
+  authors:
+  - T. F. Bloom
+  type: web page
+  location: https://www.erdosproblems.com/455
+  relationship: background
+  note: Lists the problem as open, with Richter's bound 0.352 as the best known result (consulted 2026-09-27).
+related_formalizations:
+- id: https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/455.lean
+  relationship: other
+  note: States Erdős Problem #455 and Richter's bound (erdos_455.variants.liminf, with sorry). The challenge restates the latter verbatim (theorem Erdos455.erdos_455.variants.liminf) and proves it; the main statements use the same hypotheses. Formal Conjectures is not imported.
+status:
+  scope: |-
+    Formalized in full: Theorem 1 of the source in the sharp form liminf q_n / n^2 >= 255255 / (295318 + G) (Erdos455.ofReal_le_liminf), the numerical consequences liminf > 0.864289 (Erdos455.liminf_gt) and 0.864289 n^2 < q_n eventually (Erdos455.eventually_lt), the bound G < 17.2245 (Erdos455.G_lt), and Richter's bound 0.352 (Erdos455.erdos_455.variants.liminf). The quotient q_n / n^2 is taken in [0, infinity], as in Formal Conjectures. The certificate for the dynamic program (Proposition 11) is checked by the Lean kernel; no native_decide or other axiom is used.
+    Not formalized: the exact value of the growth rate (only the upper bound 295318 is needed and checked), the tables of the source for smaller moduli, and the source's remarks on the limits of the method.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+  main_results:
+  - declaration: Erdos455.liminf_gt
+    file: Solution.lean
+    sorry_count: 0
+    axioms:
+    - propext
+    - Classical.choice
+    - Quot.sound
+    comparator_config: comparator.json
+  - declaration: Erdos455.ofReal_le_liminf
+    file: Solution.lean
+    sorry_count: 0
+    axioms:
+    - propext
+    - Classical.choice
+    - Quot.sound
+    comparator_config: comparator.json
+automation:
+  methods:
+  - method: agent
+    models:
+    - claude-opus-5-5
+    framework: Claude Code
+    tool_setup: |-
+      One session, directed by the maintainer, designed and wrote the kernel-checkable certificate (the packed value iteration, its soundness proof and the elaboration-time generator) after benchmarking GMP-backed kernel reduction in the Lean kernel, nanoda and con-ron; it regenerated the source's potential with a C program (scripts/gen_phi.c) and cross-checked the packed algorithm with a Python reference (scripts/packed_ref.py), which reproduces the growth rates of the source for the moduli 15, 105, 1155 and 15015. Two background agents in separate git worktrees formalized the constant G (Lemmas 14 and 15) and the analytic part (Lemmas 3-6 and 13, Corollary 12, Theorem 16 and Section 7) against fixed interface statements.
+    cost:
+      wall_time: about one day (2026-09-26 to 2026-09-27)
+      spend_usd: subscription-based
+      hardware: a laptop for Lean builds and benchmarks, API-only for inference
+    prompting_notes: Human-directed; the maintainer supplied the draft and asked for a formalization of its main result that passes lake comparator and meets the Palomar standards.
+  - method: manual
+    models: []
+    framework: n/a
+    tool_setup: Human direction and judgement; the choice of the result and of the statements.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: local machine
+    prompting_notes: n/a
+  spend_usd: subscription-based; not separately tracked
+  notes: |-
+    The mathematics of the source and the Lean development were produced by AI under the maintainer's direction. No AI system is listed as an author.
+fidelity:
+  divergences: |-
+    The runs are indexed by the least index n >= n_0 with gap(n) >= x for every x (not only for x >= d* as in the source), so that runs below d* are empty and need no special case. Theorem 16 is proved in the form N(D) <= (Lambda + G + eps) D / 2M + C_eps for every eps > 0 instead of with the error term log_2 D + C. Section 7 does not use gap(n) -> infinity. Lemma 15 is proved with the weaker (sufficient) precision 17.2244 < G < 17.2245. Proposition 11 is checked through an equivalent packed computation (with offsets, normalisation and a fieldwise maximum using guard bits) rather than through the source's checker, and the potential is recomputed at elaboration time rather than read from the source's file; it agrees with the source's potential up to an additive constant.
+review:
+  status: agent-reviewed
+  reviewers:
+  - the formalizing agents (Claude Code); no human review
+  notes: |-
+    No external review of the source or of the formalization. The Lean statements were checked against the source by reading Challenge.lean; the compared theorems use exactly propext, Classical.choice and Quot.sound, and lake comparator accepts them with the Lean kernel, nanoda and con-ron.
+alignment:
+  namespace: Erdos455
+  statements:
+  - source: Theorem 1 (sharp form)
+    lean: Erdos455.ofReal_le_liminf
+    module: Solution
+    status: proved
+  - source: Theorem 1 (numerical form)
+    lean: Erdos455.liminf_gt
+    module: Solution
+    status: proved
+  - source: Theorem 1 (eventual form)
+    lean: Erdos455.eventually_lt
+    module: Solution
+    status: proved
+  - source: Lemma 15 (numerical value of G)
+    lean: Erdos455.G_lt
+    module: Solution
+    status: proved
+  - source: Richter's theorem, as erdos_455.variants.liminf of Formal Conjectures
+    lean: Erdos455.erdos_455.variants.liminf
+    module: Solution
+    status: proved
+  - source: Proposition 11 (the certificate)
+    lean: Erdos455.exists_potential
+    module: Erdos455.DP.Certificate
+    status: proved
+  - source: Lemma 3 (arithmetic progressions of primes)
+    lean: Erdos455.eq_leastNonDivisor_of_prime_add_mul
+    module: Erdos455.Progression
+    status: proved
+  - source: Lemma 8 (runs of units)
+    lean: Erdos455.IsRun.add_two_le
+    module: Erdos455.DP.Runs
+    status: proved
+  - source: Lemma 14
+    lean: Erdos455.sum_leastNonDivisor_two_mul_M_le
+    module: Erdos455.Constant
+    status: proved
+acknowledgements: |-
+  Built on Lean 4 and Mathlib and checked with lake comparator. The problem statement follows Formal Conjectures; Richter's idea of treating runs of equal gaps as arithmetic progressions of primes underlies the argument.

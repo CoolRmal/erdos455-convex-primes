@@ -15,13 +15,14 @@ and add it to the environment together with the theorems that the kernel checks.
 The code in this file is *untrusted*: it only proposes definitions (the packed constants, the
 potential `φ`, the normalisation schedule and the intermediate states of the value iteration)
 and proof terms of the form `of_decide_eq_true (Eq.refl true)`, which the kernel checks by
-evaluating the verified computation `Layout.run` of `Erdos455.DP.Step`. A wrong proposal can
-only make the kernel reject a theorem.
+evaluating the verified computation `Layout.run` of `Erdos455.DP.Step`. A wrong proposal
+can only make the kernel reject a theorem.
 
 * `dp_layout% L R b` defines the layout `L` with `R` fields of `b` bits.
-* `dp_certificate% L K C φ hL hR` (with `hL : L.WF` and `hR : 3 * L.R = M`) runs one period of the value iteration from zero to compute the
-  potential and defines it as the state `φ`; then runs one period from `φ` in chunks of `C`
-  steps (normalising every `K` steps), defining the intermediate states and the theorems
+* `dp_certificate% L K C φ hL hR` (with `hL : L.WF` and `hR : 3 * L.R = M`) runs one period
+  of the value iteration from zero to compute the potential and defines it as the state `φ`;
+  then runs one period from `φ` in chunks of `C` steps (normalising every `K` steps),
+  defining the intermediate states and the theorems
   `φ.chunk_k : L.run K C (k C) sched_k st_k = some ([], st_(k+1))` and
   `φ.sim_k : st_k.Good L ∧ Sim L (φ.value L) (k C) st_k`, ending with the final state `φ.final`
   and `φ.final_sim : φ.final.Good L ∧ Sim L (φ.value L) (M - 1) φ.final`.
@@ -111,8 +112,11 @@ def runAuto (L : Layout) (K n lo : ℕ) (st : State) :
 
 /-! ### Expressions -/
 
-/-- The expression of a natural number literal. -/
+/-- The expression of a (large) natural number, as a raw literal. -/
 def natE (n : ℕ) : Expr := mkRawNatLit n
+
+/-- The expression of a small natural number (an index), as a numeral `OfNat.ofNat n`. -/
+def numE (n : ℕ) : Expr := mkNatLit n
 
 /-- The expression of a state. -/
 def stateE (st : State) : Expr :=
@@ -190,7 +194,7 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
   let φE := mkApp2 (mkConst ``State.value) lE (mkConst phiName)
   let simE (lo : ℕ) (stE : Expr) : Expr :=
     mkApp2 (mkConst ``And) (mkApp2 (mkConst ``State.Good) lE stE)
-      (mkApp4 (mkConst ``Sim) lE φE (natE lo) stE)
+      (mkApp4 (mkConst ``Sim) lE φE (numE lo) stE)
   -- `sim_0` from the initial state
   let goodTy := mkApp3 (mkConst ``Eq [1]) (mkConst ``Bool)
     (mkApp2 (mkConst ``Layout.goodB) lE (mkConst phiName)) (mkConst ``Bool.true)
@@ -219,7 +223,7 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
     liftCoreM <| addDef nextName (mkConst ``State) (stateE st')
     -- the kernel checks the chunk by evaluation
     let resTy := mkApp2 (mkConst ``Prod [0, 0]) schedTy (mkConst ``State)
-    let lhs := mkAppN (mkConst ``Layout.run) #[lE, natE K, natE n, natE lo, mkConst schedName,
+    let lhs := mkAppN (mkConst ``Layout.run) #[lE, numE K, numE n, numE lo, mkConst schedName,
       mkConst stName]
     let rhs := mkApp2 (mkConst ``Option.some [0]) resTy
       (mkApp4 (mkConst ``Prod.mk [0, 0]) schedTy (mkConst ``State)
@@ -230,11 +234,11 @@ elab "dp_certificate% " lId:ident K:num C:num phiId:ident wf:ident hR:ident : co
     liftCoreM <| addThm chunkName chunkTy chunkPf
     -- the conclusion of the value iteration after the chunk
     let ltTy := mkApp4 (mkConst ``LT.lt [0]) (mkConst ``Nat) (mkConst ``instLTNat)
-      (natE (lo + n)) (mkConst ``M)
+      (numE (lo + n)) (mkConst ``M)
     let ltPf ← liftTermElabM <| decideProof ltTy
     liftCoreM <| addThm simName' (simE (lo + n) (mkConst nextName))
       (mkAppN (mkConst ``chunk) #[lE, mkConst wfName, mkConst hRName, φE,
-        natE K, natE n, natE lo, mkConst schedName, mkConst stName, mkConst nextName,
+        numE K, numE n, numE lo, mkConst schedName, mkConst stName, mkConst nextName,
         mkConst chunkName, ltPf, mkConst simName])
     if k % 50 == 0 then
       IO.eprintln s!"dp_certificate%: chunk {k} checked after {(← IO.monoMsNow) - t1} ms"
